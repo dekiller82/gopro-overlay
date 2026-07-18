@@ -59,7 +59,11 @@ function WidgetCanvas({
     const canvas = canvasRef.current
     if (!canvas || pixelWidth <= 0 || pixelHeight <= 0) return
 
-    const dpr = window.devicePixelRatio || 1
+    // Capped at 2x: every widget gets its own canvas, redrawn on every animation frame during
+    // playback, so backing-store pixel count (and the GPU/CPU fill cost that scales with it) adds
+    // up fast across several widgets at once. Uncapped 3x display scaling (common on some Windows
+    // laptops) would nearly double that again for no visible benefit at typical widget sizes.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
     const targetW = Math.max(1, Math.round(pixelWidth * dpr))
     const targetH = Math.max(1, Math.round(pixelHeight * dpr))
     if (canvas.width !== targetW) canvas.width = targetW
