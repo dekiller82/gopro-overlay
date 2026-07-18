@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Customizable GoPro telemetry overlay editor and exporter",
   "main": "./out/main/index.js",
-  "author": "dekiller82",
+  "author": "dekiller82 <erenerikaydogan@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
