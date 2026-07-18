@@ -7,24 +7,20 @@ baked in.
 
 Built with Electron, React, and TypeScript. Runs on Windows, macOS, and Linux.
 
+## Demo
+
+[![GoPro Overlay demo video](https://img.youtube.com/vi/YtDYg4stG4M/maxresdefault.jpg)](https://youtu.be/YtDYg4stG4M)
+
+Shows the GPS track, sector timer, timing tower, delta time, apex speed callout, and digital
+speedometer widgets running together over real footage.
+
 ## Features
 
 - **Multi-clip import** — select every part of a chapter-split GoPro recording
   (`GH010230.MP4`, `GH020230.MP4`, ...) at once; they're stitched into a single timeline with
   continuous telemetry.
 - **11 telemetry widgets**, each fully configurable (colors, fonts, size, smoothing) via the
-  property panel:
-  - GPS track map
-  - Analog & digital speedometer
-  - Timer (elapsed time or F1-style lap timing tower)
-  - Sector timer
-  - Delta time (vs. best lap)
-  - Predictive lap timer
-  - Apex speed callout
-  - Speed/distance graph (full-lap or a scrolling window centered on the current position, with
-    prior laps shown as reference traces)
-  - G-Force friction circle (lateral vs. longitudinal G, from the onboard accelerometer)
-  - Roll / lean angle (from the onboard gyroscope/gravity vector)
+  property panel — see [Widgets](#widgets) below for what each one shows and its own options.
 - **Lap & sector detection** from a start/finish line you place on the GPS track — everything
   (timer, sector timer, delta time, predictive lap timer, speed graph) derives from it
   automatically.
@@ -38,6 +34,64 @@ Built with Electron, React, and TypeScript. Runs on Windows, macOS, and Linux.
   (NVIDIA NVENC, Intel Quick Sync, AMD AMF) before trusting it, falling back to CPU (libx264) if
   none is available or the GPU encoder fails partway through. See [GPU acceleration](#gpu-acceleration)
   below for exactly what's accelerated on which vendor.
+
+## Widgets
+
+Every widget is drag/resize/rotate-able on the preview and shares a common set of options where it
+makes sense: a text outline width/color, and (for panel-style widgets) a background color/opacity.
+Lap/sector-dependent widgets all key off the single start/finish point you place on the GPS track.
+
+- **GPS track map** — the full track outline with a moving position dot. Three coloring modes:
+  `solid` (one color), `speed` (gradient between a slow/fast color, scaled to this session's own
+  min/max speed), or `braking` (segments colored by braking/accelerating/neutral, with an adjustable
+  G-force threshold for what counts as "braking"). Dot color, radius, and an optional glow are
+  configurable separately from the line.
+
+- **Speedometer (analog & digital)** — current speed in km/h or mph, Gaussian-smoothed to damp GPS
+  jitter (smoothing window is adjustable). The analog gauge has its own configurable min/max scale;
+  color, accent color, and the unit label can all be toggled/recolored.
+
+- **Timer** — two modes. `elapsed` is a plain running-time readout (color, centiseconds on/off,
+  optional label). `laps` is a full F1-style timing tower: upload your own header logo (or use the
+  bundled default) with an adjustable scale, set custom header text, choose `ranked` (fastest-to-slowest)
+  or `chronological` row order (with newest-on-top or -bottom), and a fixed visible row count so the
+  tower never resizes as laps come in.
+
+- **Sector timer** — auto-divides each lap into three sectors by GPS arc-length (no manual marking
+  needed). A sector turns **purple** the moment it ties or beats your best-ever time for that
+  specific sector, even mid-lap. An optional secondary row shows the last fully completed lap's own
+  S1/S2/S3 for direct comparison.
+
+- **Delta time** — your in-progress lap's time vs. your fastest *completed* lap, compared at the
+  same distance into the lap (not the same elapsed time, which would be meaningless once pace
+  diverges). Separate colors for ahead/behind/no-baseline-yet, optional label.
+
+- **Predictive lap timer** — projects a finishing time for the current lap at your current pace
+  (baseline lap time + live delta). Can show a small +/- sub-readout using the same color convention
+  as the Delta Time widget.
+
+- **Apex speed callout** — detects real corner apexes (a genuine speed dip, not GPS noise) and
+  flashes the minimum speed reached. Tunable detection: minimum speed drop required on both sides of
+  the dip, minimum gap between consecutive apexes, and how long each callout stays on screen.
+
+- **Speed/distance graph** — two view modes. `fullLap` draws each of the last N laps across its
+  entire distance, each in its own color. `window` instead scrolls to keep your current position
+  centered, showing only a band of track behind/ahead of you (width adjustable in meters) — every
+  prior lap is drawn in one shared neutral reference color so the only thing that stands out is
+  whether your current line is running above or below the pack right at that exact spot on track.
+  Number of laps shown, current-lap highlighting, and grid styling are all configurable.
+
+- **G-Force friction circle** — plots lateral (cornering) vs. longitudinal (braking/accelerating) G
+  on a ring-gridded scatter, with a fading trail behind the current smoothed reading (trail duration,
+  smoothing window, grid radius in G, and all colors are adjustable). Axis mapping is
+  auto-calibrated per import from the accelerometer + GPS; a manual override (pick the vertical and
+  longitudinal axis index, invert any axis) is available if auto-calibration picks the wrong one.
+
+- **Roll / lean angle** — a numeric readout plus a tilting horizon bar (degrees-per-full-swing is
+  adjustable). Uses the camera's gravity-vector stream when present, falling back to an
+  accelerometer-tilt estimate on older footage (with an optional on-screen accuracy note — see
+  [Known limitations](#known-limitations)). Shares the same axis auto-calibration/manual-override
+  pattern as the G-Force widget.
 
 ## Requirements
 
