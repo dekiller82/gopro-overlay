@@ -12,7 +12,8 @@ function makeClip(startOffsetMs: number, durationMs: number): ClipInfo {
     height: 1080,
     codec: 'h264',
     pixFmt: 'yuv420p',
-    hasAudio: true
+    hasAudio: true,
+    lrvPath: null
   }
   return { video, startOffsetMs }
 }

@@ -38,6 +38,11 @@ function contentTypeFor(filePath: string): string {
       return 'video/webm'
     case 'mov':
       return 'video/quicktime'
+    // GoPro's low-res proxy sidecar (see main/video/lrv.ts) -- a completely standard MP4/H.264
+    // container despite the unusual extension, so <video> needs the same content-type as .mp4 to
+    // recognize and play it.
+    case 'lrv':
+      return 'video/mp4'
     default:
       return 'application/octet-stream'
   }

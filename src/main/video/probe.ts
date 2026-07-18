@@ -3,6 +3,7 @@ import { promisify } from 'util'
 import { basename } from 'path'
 import ffprobeStatic from 'ffprobe-static'
 import type { VideoMeta } from '../../shared/types'
+import { findLrvSibling } from './lrv'
 
 const execFileAsync = promisify(execFile)
 
@@ -55,6 +56,7 @@ export async function probeVideo(filePath: string): Promise<VideoMeta> {
     height: videoStream.height ?? 0,
     codec: videoStream.codec_name ?? '',
     pixFmt: videoStream.pix_fmt ?? '',
-    hasAudio
+    hasAudio,
+    lrvPath: findLrvSibling(filePath)
   }
 }

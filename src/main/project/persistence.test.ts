@@ -17,6 +17,7 @@ function makeVideoMeta(path: string, overrides: Partial<VideoMeta> = {}): VideoM
     codec: 'h264',
     pixFmt: 'yuv420p',
     hasAudio: true,
+    lrvPath: null,
     ...overrides
   }
 }
@@ -162,7 +163,7 @@ describe('project persistence', () => {
 
     const loaded = await loadProjectFromFile(projectPath)
 
-    expect(loaded.imported.clips).toEqual([{ video: { ...v1Project.sourceVideo, hasAudio: true }, startOffsetMs: 0 }])
+    expect(loaded.imported.clips).toEqual([{ video: { ...v1Project.sourceVideo, hasAudio: true, lrvPath: null }, startOffsetMs: 0 }])
     expect(loaded.trimStartMs).toBe(0)
     expect(loaded.trimEndMs).toBe(15000)
     expect(loaded.startFinish).toBeNull()
@@ -236,6 +237,10 @@ describe('project persistence', () => {
     if (gpsWidget.type !== 'gpsTrack') throw new Error('expected a gpsTrack widget')
     expect(gpsWidget.style.colorMode).toBe('solid')
     expect(gpsWidget.style.brakingThresholdMps2).toBe(1.5)
+
+    // This fixture's video object also predates lrvPath entirely (written before LRV sidecar
+    // support existed) -- confirms videoMetaSchema's .default(null) covers a real already-saved file.
+    expect(loaded.imported.clips[0].video.lrvPath).toBeNull()
 
     // The telemetry cache fixture above also predates accel/gyro/gravity entirely (written before
     // the G-Force Diagram/Roll Angle widgets added IMU parsing) -- confirms telemetryDataSchema's

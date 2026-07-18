@@ -52,6 +52,10 @@ function VideoPlayer({ videoRef, style, playerApiRef }: Props): React.JSX.Elemen
 
   // Per-clip proxy-retry tracking (was a single boolean pre-multi-clip).
   const triedProxyClipsRef = useRef<Set<number>>(new Set())
+  // Separate from triedProxyClipsRef -- the LRV sidecar (see main/video/lrv.ts) is tried BEFORE the
+  // from-scratch transcode, not instead of it, so a clip needs its own "already tried" tracking to
+  // fall through to the transcode if the LRV also fails (or doesn't exist).
+  const triedLrvClipsRef = useRef<Set<number>>(new Set())
   // Bumped every time the active clip actually changes -- guards every async continuation
   // (proxy-fallback .then(), the pending-seek-on-loadeddata handler) against applying a result
   // for a clip the user has since scrubbed away from.
@@ -69,6 +73,7 @@ function VideoPlayer({ videoRef, style, playerApiRef }: Props): React.JSX.Elemen
   useEffect(() => {
     setActiveClipIndex(0)
     triedProxyClipsRef.current = new Set()
+    triedLrvClipsRef.current = new Set()
     pendingSeekRef.current = null
   }, [firstClipPath])
 
@@ -195,6 +200,18 @@ function VideoPlayer({ videoRef, style, playerApiRef }: Props): React.JSX.Elemen
       const mediaError = el.error
       const code = mediaError?.code ?? 0
       console.error('[video] error event for src:', srcPath, 'code:', code, mediaError?.message)
+
+      // Tried before the from-scratch transcode below: GoPro's own LRV sidecar (see
+      // main/video/lrv.ts) is already a small, fast-start H.264 file, so when one exists this is a
+      // simple src swap -- no transcode wait at all, and it also sidesteps the slow-SD-card seek
+      // stall this same error path is often actually caused by (see README's Known limitations),
+      // since the LRV is far smaller and faster to seek through than the original.
+      if (!triedLrvClipsRef.current.has(activeClipIndex) && isFormatError(code) && activeClip.video.lrvPath) {
+        triedLrvClipsRef.current.add(activeClipIndex)
+        console.log('[video] native playback failed, trying LRV sidecar:', activeClip.video.lrvPath)
+        setSrcPath(activeClip.video.lrvPath)
+        return
+      }
 
       if (!triedProxyClipsRef.current.has(activeClipIndex) && isFormatError(code)) {
         triedProxyClipsRef.current.add(activeClipIndex)

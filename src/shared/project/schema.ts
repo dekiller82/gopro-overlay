@@ -271,7 +271,8 @@ export const videoMetaSchema = z.object({
   height: z.number(),
   codec: z.string(),
   pixFmt: z.string(),
-  hasAudio: z.boolean()
+  hasAudio: z.boolean(),
+  lrvPath: z.string().nullable().default(null)
 })
 
 export const clipInfoSchema = z.object({
@@ -353,7 +354,9 @@ const projectFileSchemaV1 = z.object({
  * just as a single-clip timeline with no trim. `hasAudio` isn't knowable from a v1 file without
  * re-probing the source (out of scope for a migration step); it's assumed `true` since that's the
  * overwhelmingly common case and the only consequence of a wrong guess is a slightly different
- * export audio-handling path, not a crash.
+ * export audio-handling path, not a crash. `lrvPath` similarly isn't knowable without re-probing --
+ * assumed absent (`null`), which just means the LRV-fallback preview tier is skipped for this clip,
+ * same as any freshly-imported clip that genuinely has no sidecar proxy file.
  */
 export function parseProjectFile(raw: unknown): ProjectFile {
   const v2 = projectFileSchema.safeParse(raw)
@@ -365,7 +368,7 @@ export function parseProjectFile(raw: unknown): ProjectFile {
     return {
       ...rest,
       version: 2,
-      clips: [{ video: { ...sourceVideo, hasAudio: true }, startOffsetMs: 0 }],
+      clips: [{ video: { ...sourceVideo, hasAudio: true, lrvPath: null }, startOffsetMs: 0 }],
       trimStartMs: 0,
       trimEndMs: sourceVideo.durationMs
     }
