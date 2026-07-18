@@ -9,7 +9,9 @@ Built with Electron, React, and TypeScript. Runs on Windows, macOS, and Linux.
 
 ## Demo
 
+**[▶ Watch the demo video](https://youtu.be/YtDYg4stG4M)** 
 [![GoPro Overlay demo video](https://img.youtube.com/vi/YtDYg4stG4M/maxresdefault.jpg)](https://youtu.be/YtDYg4stG4M)
+**[▶ Watch the demo video](https://youtu.be/YtDYg4stG4M)** 
 
 Shows the GPS track, sector timer, timing tower, delta time, apex speed callout, and digital
 speedometer widgets running together over real footage.
