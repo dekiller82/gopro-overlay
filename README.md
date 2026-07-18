@@ -97,7 +97,7 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
 
 ## Requirements
 
-- Real GoPro footage with embedded GPMF telemetry (GPS is required for most widgets; the G-Force
+- Real GoPro footage with embedded GPMF telemetry (GPS is required! ; the G-Force
   and Roll/Lean widgets need the accelerometer/gyroscope streams present on Hero5 and later; the
   gravity-vector stream used for the most accurate roll reading is only present on newer cameras —
   older footage automatically falls back to an accelerometer-tilt estimate, see
