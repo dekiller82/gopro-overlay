@@ -598,6 +598,16 @@ body {
   opacity: 0.8;
 }
 
+.field__hint--warning {
+  color: #ffb020;
+  opacity: 1;
+}
+
+.field__hint--ok {
+  color: #2ecc71;
+  opacity: 1;
+}
+
 .preset-row {
   display: flex;
   gap: 8px;

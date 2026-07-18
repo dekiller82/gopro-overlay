@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { SpeedUnit } from '@shared/units'
 import type { WidgetInstance, WidgetLayoutPreset } from '@shared/types'
 import { GPS_STYLE_PRESETS, SPEEDOMETER_STYLE_PRESETS, TIMER_STYLE_PRESETS, type StylePreset } from '@shared/widgets/presets'
@@ -13,7 +13,7 @@ import { DEFAULT_SPEED_DISTANCE_GRAPH_STYLE, type SpeedDistanceGraphStyle } from
 import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '@shared/render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '@shared/render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '@shared/render/drawSessionSummary'
-import { nearestLatLon } from '@shared/telemetry/laps'
+import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
 import { useWidgetStore } from '../store/widgetStore'
 import { useProjectStore } from '../store/projectStore'
@@ -159,6 +159,20 @@ function PropertyPanel(): React.JSX.Element {
   const setSnapEnabled = useAlignmentStore((s) => s.setSnapEnabled)
 
   const selected = widgets.find((w) => w.id === selectedId) ?? null
+
+  // Live feedback for the GPS Track "ghost" marker -- it depends on two silent preconditions (a
+  // start/finish line, and at least one lap actually completed by the current scrub position)
+  // that have no visual effect of their own when unmet, which reads as "the feature doesn't work"
+  // rather than "not available yet." Recomputes lap crossings the same way WidgetLayer.tsx does for
+  // the real ghost/deltaTime logic, just for this one status line.
+  const ghostStatus = useMemo((): 'no-start-finish' | 'no-completed-lap' | 'active' | null => {
+    if (!selected || selected.type !== 'gpsTrack' || !selected.style.showGhost) return null
+    if (!startFinish) return 'no-start-finish'
+    if (!imported) return 'no-completed-lap'
+    const crossings = detectLapCrossings(imported.telemetry.samples, startFinish)
+    const hasCompletedLap = crossings.some((c, i) => i > 0 && c <= currentTimeMs)
+    return hasCompletedLap ? 'active' : 'no-completed-lap'
+  }, [selected, startFinish, imported, currentTimeMs])
 
   const [layoutPresets, setLayoutPresets] = useState<WidgetLayoutPreset[]>([])
   useEffect(() => {
@@ -606,9 +620,22 @@ function PropertyPanel(): React.JSX.Element {
               </label>
               <span className="field__hint">
                 A second marker at your fastest completed lap's own position at this same elapsed time into its
-                lap -- shows ahead/behind spatially on the track, not just as a number. Appears once one full lap
-                is complete.
+                lap -- shows ahead/behind spatially on the track, not just as a number.
               </span>
+              {ghostStatus === 'no-start-finish' && (
+                <span className="field__hint field__hint--warning">
+                  ⚠ Not shown yet -- set a start/finish line first (see the Start/finish line section at the top).
+                </span>
+              )}
+              {ghostStatus === 'no-completed-lap' && (
+                <span className="field__hint field__hint--warning">
+                  ⚠ Not shown yet at the current scrub position -- it appears once your fastest completed lap
+                  exists to compare against, i.e. partway through lap 2 or later.
+                </span>
+              )}
+              {ghostStatus === 'active' && (
+                <span className="field__hint field__hint--ok">✓ Showing, comparing against your fastest completed lap so far.</span>
+              )}
             </>
           )}
 
