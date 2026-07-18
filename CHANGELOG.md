@@ -2,7 +2,7 @@
 
 All notable changes to GoPro Overlay are documented here.
 
-## [0.1.3] - Unreleased
+## [0.1.3]
 
 ### Added
 - **Session Summary widget** — an end-of-session outro card with an eased opening animation,
