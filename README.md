@@ -7,6 +7,8 @@ baked in.
 
 Built with Electron, React, and TypeScript. Runs on Windows, macOS, and Linux.
 
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ## Demo
 
 ![GoPro Overlay demo](docs/demo.gif)
@@ -21,15 +23,22 @@ speedometer widgets running together over real footage.
 - **Multi-clip import** — select every part of a chapter-split GoPro recording
   (`GH010230.MP4`, `GH020230.MP4`, ...) at once; they're stitched into a single timeline with
   continuous telemetry.
-- **11 telemetry widgets**, each fully configurable (colors, fonts, size, smoothing) via the
+- **12 telemetry widgets**, each fully configurable (colors, fonts, size, smoothing) via the
   property panel — see [Widgets](#widgets) below for what each one shows and its own options.
 - **Lap & sector detection** from a start/finish line you place on the GPS track — everything
-  (timer, sector timer, delta time, predictive lap timer, speed graph) derives from it
-  automatically.
-- **Widget alignment tools** — snap-to-edge/center dragging with configurable padding, plus
-  one-click align/center buttons, so widgets line up without guessing pixel offsets.
+  (timer, sector timer, delta time, predictive lap timer, speed graph, session summary) derives
+  from it automatically.
+- **Multi-select** — shift-click widgets (on the canvas or in the widget list) to build a
+  selection; drag any member to move the whole group together, and align/center/delete/arrow-key
+  nudge all apply to the whole selection at once.
+- **Widget alignment tools** — snap-to-edge/center dragging with configurable padding, one-click
+  align/center buttons, and arrow-key nudge (1px, 10px with Shift) for pixel-precise placement.
 - **Drag/resize/rotate** every widget directly on the video preview; live preview matches the
   final export exactly.
+- **Undo/redo** for every widget edit, saveable/re-applicable widget layout presets, and autosave
+  with crash recovery.
+- **Recent Projects** list on the start screen for one-click reopening of your last 10
+  opened/saved projects.
 - **Project files** (`.gpo`) save the full editing state (imported clips, widgets, trim, start/finish
   line) so you can come back and keep editing.
 - **GPU-accelerated export** — automatically detects and smoke-tests a working hardware encoder
@@ -47,7 +56,9 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
   `solid` (one color), `speed` (gradient between a slow/fast color, scaled to this session's own
   min/max speed), or `braking` (segments colored by braking/accelerating/neutral, with an adjustable
   G-force threshold for what counts as "braking"). Dot color, radius, and an optional glow are
-  configurable separately from the line.
+  configurable separately from the line. An optional **ghost marker** shows your fastest completed
+  lap's own position at the same elapsed time into its lap, once one exists to compare against —
+  a real spatial ahead/behind gap, not just a number.
 
 - **Speedometer (analog & digital)** — current speed in km/h or mph, Gaussian-smoothed to damp GPS
   jitter (smoothing window is adjustable). The analog gauge has its own configurable min/max scale;
@@ -94,6 +105,11 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
   accelerometer-tilt estimate on older footage (with an optional on-screen accuracy note — see
   [Known limitations](#known-limitations)). Shares the same axis auto-calibration/manual-override
   pattern as the G-Force widget.
+
+- **Session summary** — an end-of-session outro card with an eased opening animation, shown for a
+  configurable number of seconds before the end of the trim range. Displays lap count, best
+  lap/sector splits, top speed, distance covered, and elapsed time, all as of wherever you're
+  scrubbed to.
 
 ## Requirements
 
