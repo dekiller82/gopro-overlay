@@ -4,7 +4,9 @@ import type { TelemetrySampler } from '@shared/telemetry/sampleAt'
 import type { LapState } from '@shared/telemetry/laps'
 import type { SectorState } from '@shared/telemetry/sectors'
 import type { DeltaState } from '@shared/telemetry/deltaTime'
+import type { ProjectedPoint } from '@shared/telemetry/interpolate'
 import type { LapSpeedTrace } from '@shared/telemetry/speedTrace'
+import type { SessionSummaryData } from '@shared/render/drawSessionSummary'
 import { detectApexEvents } from '@shared/telemetry/apex'
 import { buildManualCalibration, buildManualCalibrationForRoll } from '@shared/telemetry/imuCalibration'
 import { drawWidget } from '@shared/render/drawWidget'
@@ -23,6 +25,9 @@ interface Props {
   lapState: LapState | null
   sectorState: SectorState | null
   deltaState: DeltaState | null
+  ghostPosition: ProjectedPoint | null
+  sessionSummaryData: SessionSummaryData | null
+  sessionEndMs: number
   lapSpeedTraces: LapSpeedTrace[]
   currentLapSpeedTrace: LapSpeedTrace | null
 }
@@ -36,6 +41,9 @@ function WidgetCanvas({
   lapState,
   sectorState,
   deltaState,
+  ghostPosition,
+  sessionSummaryData,
+  sessionEndMs,
   lapSpeedTraces,
   currentLapSpeedTrace
 }: Props): React.JSX.Element {
@@ -134,6 +142,9 @@ function WidgetCanvas({
       lapState,
       sectorState,
       deltaState,
+      ghostPosition,
+      sessionSummaryData: sessionSummaryData ?? undefined,
+      sessionEndMs,
       apexEvents,
       headerImage,
       fastestLapIcon,
@@ -157,6 +168,9 @@ function WidgetCanvas({
     lapState,
     sectorState,
     deltaState,
+    ghostPosition,
+    sessionSummaryData,
+    sessionEndMs,
     apexEvents,
     headerImage,
     fastestLapIcon,

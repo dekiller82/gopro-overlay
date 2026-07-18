@@ -1,6 +1,6 @@
 import type { DeltaState } from '../telemetry/deltaTime'
 import { FORMULA1_BOLD } from './fonts'
-import { drawFixedWidthText, drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface DeltaTimeStyle {
   /** No baseline lap yet (still on the first timed lap). */
@@ -17,6 +17,8 @@ export interface DeltaTimeStyle {
   textOutlineColor: string
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
 }
 
 export const DEFAULT_DELTA_TIME_STYLE: DeltaTimeStyle = {
@@ -28,7 +30,8 @@ export const DEFAULT_DELTA_TIME_STYLE: DeltaTimeStyle = {
   textOutlineWidth: 2,
   textOutlineColor: '#000000',
   backgroundColor: '#0a0a10',
-  backgroundOpacity: 0.72
+  backgroundOpacity: 0.72,
+  cornerRadius: 12
 }
 
 export interface DrawDeltaTimeOptions {
@@ -61,7 +64,7 @@ export function drawDeltaTime(ctx: Canvas2DLike, options: DrawDeltaTimeOptions):
     ctx.save()
     ctx.globalAlpha = style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 

@@ -12,6 +12,7 @@ import { DEFAULT_APEX_SPEED_CALLOUT_STYLE } from '@shared/render/drawApexSpeedCa
 import { DEFAULT_SPEED_DISTANCE_GRAPH_STYLE, type SpeedDistanceGraphStyle } from '@shared/render/drawSpeedDistanceGraph'
 import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '@shared/render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '@shared/render/drawRollAngle'
+import { DEFAULT_SESSION_SUMMARY_STYLE } from '@shared/render/drawSessionSummary'
 import { nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
 import { useWidgetStore } from '../store/widgetStore'
@@ -56,6 +57,8 @@ function widgetLabel(type: WidgetInstance['type']): string {
       return 'G-Force Diagram'
     case 'rollAngle':
       return 'Roll/Lean Angle'
+    case 'sessionSummary':
+      return 'Session Summary'
   }
 }
 
@@ -139,9 +142,11 @@ function PresetRow<T>({ presets, onPick }: { presets: StylePreset<T>[]; onPick: 
 function PropertyPanel(): React.JSX.Element {
   const widgets = useWidgetStore((s) => s.widgets)
   const selectedId = useWidgetStore((s) => s.selectedId)
+  const selectedIds = useWidgetStore((s) => s.selectedIds)
   const selectWidget = useWidgetStore((s) => s.selectWidget)
   const updateWidget = useWidgetStore((s) => s.updateWidget)
   const removeWidget = useWidgetStore((s) => s.removeWidget)
+  const removeWidgets = useWidgetStore((s) => s.removeWidgets)
   const addWidget = useWidgetStore((s) => s.addWidget)
   const applyWidgets = useWidgetStore((s) => s.applyWidgets)
   const imported = useProjectStore((s) => s.imported)
@@ -174,22 +179,26 @@ function PropertyPanel(): React.JSX.Element {
     window.api.deleteLayoutPreset(id).then(setLayoutPresets)
   }
 
+  // Align/center apply to the WHOLE current selection when more than one widget is selected, each
+  // widget aligned independently against the frame (not against each other) -- selectedIds always
+  // includes selected.id when non-empty, so this covers both the single- and multi-select case.
+  const targetWidgets = selectedIds.length > 0 ? widgets.filter((w) => selectedIds.includes(w.id)) : selected ? [selected] : []
+
   function alignHorizontal(align: HorizontalAlign): void {
-    if (!selected) return
-    updateWidget(selected.id, { x: alignedX(selected.w, align, paddingFraction) })
+    for (const w of targetWidgets) updateWidget(w.id, { x: alignedX(w.w, align, paddingFraction) })
   }
 
   function alignVertical(align: VerticalAlign): void {
-    if (!selected) return
-    updateWidget(selected.id, { y: alignedY(selected.h, align, paddingFraction) })
+    for (const w of targetWidgets) updateWidget(w.id, { y: alignedY(w.h, align, paddingFraction) })
   }
 
   function centerBoth(): void {
-    if (!selected) return
-    updateWidget(selected.id, {
-      x: alignedX(selected.w, 'centerH', paddingFraction),
-      y: alignedY(selected.h, 'centerV', paddingFraction)
-    })
+    for (const w of targetWidgets) {
+      updateWidget(w.id, {
+        x: alignedX(w.w, 'centerH', paddingFraction),
+        y: alignedY(w.h, 'centerV', paddingFraction)
+      })
+    }
   }
 
   function setGlobalStartFinishHere(): void {
@@ -263,14 +272,18 @@ function PropertyPanel(): React.JSX.Element {
           <button className="property-panel__add" onClick={() => addWidget('rollAngle')}>
             + Roll/Lean Angle
           </button>
+          <button className="property-panel__add" onClick={() => addWidget('sessionSummary')}>
+            + Session Summary
+          </button>
         </div>
         <ul className="widget-list">
           {widgets.length === 0 && <li className="widget-list__empty">No widgets yet</li>}
           {widgets.map((w) => (
             <li
               key={w.id}
-              className={`widget-list__item${w.id === selectedId ? ' widget-list__item--active' : ''}`}
-              onClick={() => selectWidget(w.id)}
+              className={`widget-list__item${selectedIds.includes(w.id) ? ' widget-list__item--active' : ''}`}
+              title="Click to select, shift-click to add/remove from selection"
+              onClick={(e) => selectWidget(w.id, e.shiftKey)}
             >
               {widgetLabel(w.type)}
             </li>
@@ -309,8 +322,23 @@ function PropertyPanel(): React.JSX.Element {
       {selected && (
         <div className="property-panel__section">
           <div className="property-panel__header">
-            <span>Alignment</span>
+            <span>Alignment{selectedIds.length > 1 ? ` (${selectedIds.length} selected)` : ''}</span>
+            {selectedIds.length > 1 && (
+              <button
+                className="property-panel__delete"
+                title="Delete all selected widgets"
+                onClick={() => removeWidgets(selectedIds)}
+              >
+                Delete all
+              </button>
+            )}
           </div>
+          {selectedIds.length > 1 && (
+            <span className="field__hint">
+              Shift-click widgets (in the list above or on the video) to add/remove them. Dragging, aligning, deleting, or
+              nudging with the arrow keys applies to the whole selection.
+            </span>
+          )}
 
           <div className="property-panel__add-row">
             <button className="property-panel__add" title="Align left" onClick={() => alignHorizontal('left')}>
@@ -515,6 +543,32 @@ function PropertyPanel(): React.JSX.Element {
             </>
           )}
 
+          <label className="field field--checkbox">
+            <input
+              type="checkbox"
+              checked={style.showGhost}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showGhost: e.target.checked } })}
+            />
+            <span>Show ghost (best lap's position)</span>
+          </label>
+          {style.showGhost && (
+            <>
+              <label className="field">
+                <span>Ghost color</span>
+                <input
+                  type="color"
+                  value={style.ghostColor}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, ghostColor: e.target.value } })}
+                />
+              </label>
+              <span className="field__hint">
+                A second marker at your fastest completed lap's own position at this same elapsed time into its
+                lap -- shows ahead/behind spatially on the track, not just as a number. Appears once one full lap
+                is complete.
+              </span>
+            </>
+          )}
+
           <label className="field">
             <span>Rotation ({selected.rotation}°)</span>
             <input
@@ -629,6 +683,41 @@ function PropertyPanel(): React.JSX.Element {
               onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
             />
           </label>
+
+          {selected.type === 'speedometerDigital' && (
+            <>
+              <label className="field">
+                <span>Background color</span>
+                <input
+                  type="color"
+                  value={style.backgroundColor}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+                />
+              </label>
+              <label className="field">
+                <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={style.backgroundOpacity}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+                />
+              </label>
+              <label className="field">
+                <span>Corner radius ({style.cornerRadius}px)</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={40}
+                  step={1}
+                  value={style.cornerRadius}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+                />
+              </label>
+            </>
+          )}
 
           {style.textOutlineWidth > 0 && (
             <label className="field">
@@ -830,6 +919,18 @@ function PropertyPanel(): React.JSX.Element {
                   onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
                 />
               </label>
+
+              <label className="field">
+                <span>Corner radius ({style.cornerRadius}px)</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={40}
+                  step={1}
+                  value={style.cornerRadius}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+                />
+              </label>
             </>
           )}
 
@@ -976,6 +1077,18 @@ function PropertyPanel(): React.JSX.Element {
           </label>
 
           <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
             <span>Rotation ({selected.rotation}°)</span>
             <input
               type="range"
@@ -1091,6 +1204,18 @@ function PropertyPanel(): React.JSX.Element {
               step={0.05}
               value={style.backgroundOpacity}
               onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
             />
           </label>
 
@@ -1222,6 +1347,18 @@ function PropertyPanel(): React.JSX.Element {
               step={0.05}
               value={style.backgroundOpacity}
               onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
             />
           </label>
 
@@ -1362,6 +1499,18 @@ function PropertyPanel(): React.JSX.Element {
               step={0.05}
               value={style.backgroundOpacity}
               onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
             />
           </label>
 
@@ -1556,6 +1705,18 @@ function PropertyPanel(): React.JSX.Element {
           </label>
 
           <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
             <span>Rotation ({selected.rotation}°)</span>
             <input
               type="range"
@@ -1689,6 +1850,18 @@ function PropertyPanel(): React.JSX.Element {
               step={0.05}
               value={style.backgroundOpacity}
               onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
             />
           </label>
 
@@ -1844,6 +2017,18 @@ function PropertyPanel(): React.JSX.Element {
             />
           </label>
 
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
           <label className="field field--checkbox">
             <input
               type="checkbox"
@@ -1866,6 +2051,148 @@ function PropertyPanel(): React.JSX.Element {
               onChangeLateralOrLongitudinalInverted={(inverted) => updateWidget(selected.id, { style: { ...style, lateralInverted: inverted } })}
             />
           )}
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'sessionSummary' && (() => {
+        const style = { ...DEFAULT_SESSION_SUMMARY_STYLE, ...selected.style }
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Session Summary style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">
+            An end-of-session recap card -- only visible in the final stretch of the (trimmed) video, fading + sliding
+            into place. Best lap, best sectors, total laps, top/average speed, distance, and duration, all resolved as
+            of wherever it's showing.
+          </span>
+
+          <label className="field">
+            <span>Title</span>
+            <input type="text" value={style.title} onChange={(e) => updateWidget(selected.id, { style: { ...style, title: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Show in last ({style.showLastSeconds}s)</span>
+            <input
+              type="range"
+              min={2}
+              max={30}
+              step={1}
+              value={style.showLastSeconds}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showLastSeconds: Number(e.target.value) } })}
+            />
+          </label>
+          <span className="field__hint">Counts back from the end of your trim, not the source file's own end.</span>
+
+          <label className="field">
+            <span>Opening animation ({style.animationDurationMs}ms)</span>
+            <input
+              type="range"
+              min={0}
+              max={2000}
+              step={50}
+              value={style.animationDurationMs}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, animationDurationMs: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Speed unit</span>
+            <select value={style.unit} onChange={(e) => updateWidget(selected.id, { style: { ...style, unit: e.target.value as SpeedUnit } })}>
+              <option value="kmh">km/h</option>
+              <option value="mph">mph</option>
+              <option value="kn">knots</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Text color</span>
+            <input type="color" value={style.color} onChange={(e) => updateWidget(selected.id, { style: { ...style, color: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Label color</span>
+            <input type="color" value={style.labelColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, labelColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Accent color (title)</span>
+            <input type="color" value={style.accentColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, accentColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Text outline ({style.textOutlineWidth}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={6}
+              step={1}
+              value={style.textOutlineWidth}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+            />
+          </label>
+
+          {style.textOutlineWidth > 0 && (
+            <label className="field">
+              <span>Outline color</span>
+              <input
+                type="color"
+                value={style.textOutlineColor}
+                onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+              />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
 
           <label className="field">
             <span>Rotation ({selected.rotation}°)</span>

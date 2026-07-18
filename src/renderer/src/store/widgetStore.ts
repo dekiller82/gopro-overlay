@@ -4,13 +4,24 @@ import { createWidget } from '@shared/widgets/defaults'
 
 interface WidgetState {
   widgets: WidgetInstance[]
+  /** The "primary" selection -- drives the property panel, which can only show one widget's fields
+   *  at a time. Always a member of selectedIds (or null exactly when selectedIds is empty). */
   selectedId: string | null
+  /** Full multi-selection set (shift-click adds/removes members). Group drag/nudge/delete/align all
+   *  operate over this whole set; a single click collapses it back down to one member. */
+  selectedIds: string[]
   canUndo: boolean
   canRedo: boolean
   addWidget: (type: WidgetInstance['type']) => void
   updateWidget: (id: string, patch: Partial<WidgetInstance>) => void
   removeWidget: (id: string) => void
-  selectWidget: (id: string | null) => void
+  removeWidgets: (ids: string[]) => void
+  /** additive (shift-click) toggles the id's membership in selectedIds instead of replacing the
+   *  whole selection with just this one id. Passing null always clears the selection entirely. */
+  selectWidget: (id: string | null, additive?: boolean) => void
+  /** Moves every widget in `ids` by the same (x,y) fraction delta -- used for group drag and for
+   *  arrow-key nudge, both of which move every selected widget together. */
+  moveWidgetsBy: (ids: string[], dxFrac: number, dyFrac: number) => void
   bringToFront: (id: string) => void
   loadWidgets: (widgets: WidgetInstance[]) => void
   /** Bulk-replaces the widget list within the CURRENT editing session (e.g. applying a saved
@@ -55,13 +66,20 @@ function recordHistoryPoint(currentWidgets: WidgetInstance[]): void {
 export const useWidgetStore = create<WidgetState>((set, get) => ({
   widgets: [],
   selectedId: null,
+  selectedIds: [],
   canUndo: false,
   canRedo: false,
 
   addWidget: (type) => {
     recordHistoryPoint(get().widgets)
     const widget = createWidget(type)
-    set((state) => ({ widgets: [...state.widgets, widget], selectedId: widget.id, canUndo: true, canRedo: false }))
+    set((state) => ({
+      widgets: [...state.widgets, widget],
+      selectedId: widget.id,
+      selectedIds: [widget.id],
+      canUndo: true,
+      canRedo: false
+    }))
   },
 
   updateWidget: (id, patch) => {
@@ -73,17 +91,50 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
     }))
   },
 
-  removeWidget: (id) => {
+  removeWidget: (id) => get().removeWidgets([id]),
+
+  removeWidgets: (ids) => {
+    const idSet = new Set(ids)
+    recordHistoryPoint(get().widgets)
+    set((state) => {
+      const selectedIds = state.selectedIds.filter((existingId) => !idSet.has(existingId))
+      return {
+        widgets: state.widgets.filter((w) => !idSet.has(w.id)),
+        selectedIds,
+        selectedId: state.selectedId && idSet.has(state.selectedId) ? (selectedIds[selectedIds.length - 1] ?? null) : state.selectedId,
+        canUndo: true,
+        canRedo: false
+      }
+    })
+  },
+
+  selectWidget: (id, additive = false) => {
+    if (id === null) {
+      set({ selectedId: null, selectedIds: [] })
+      return
+    }
+    if (!additive) {
+      set({ selectedId: id, selectedIds: [id] })
+      return
+    }
+    set((state) => {
+      const isMember = state.selectedIds.includes(id)
+      const selectedIds = isMember ? state.selectedIds.filter((existingId) => existingId !== id) : [...state.selectedIds, id]
+      const selectedId = isMember ? (state.selectedId === id ? (selectedIds[selectedIds.length - 1] ?? null) : state.selectedId) : id
+      return { selectedId, selectedIds }
+    })
+  },
+
+  moveWidgetsBy: (ids, dxFrac, dyFrac) => {
+    if (ids.length === 0) return
+    const idSet = new Set(ids)
     recordHistoryPoint(get().widgets)
     set((state) => ({
-      widgets: state.widgets.filter((w) => w.id !== id),
-      selectedId: state.selectedId === id ? null : state.selectedId,
+      widgets: state.widgets.map((w) => (idSet.has(w.id) ? { ...w, x: w.x + dxFrac, y: w.y + dyFrac } : w)),
       canUndo: true,
       canRedo: false
     }))
   },
-
-  selectWidget: (id) => set({ selectedId: id }),
 
   bringToFront: (id) => {
     const maxZ = Math.max(0, ...get().widgets.map((w) => w.zIndex))
@@ -94,19 +145,19 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
     past = []
     future = []
     burstActive = false
-    set({ widgets, selectedId: null, canUndo: false, canRedo: false })
+    set({ widgets, selectedId: null, selectedIds: [], canUndo: false, canRedo: false })
   },
 
   applyWidgets: (widgets) => {
     recordHistoryPoint(get().widgets)
-    set({ widgets, selectedId: null, canUndo: true, canRedo: false })
+    set({ widgets, selectedId: null, selectedIds: [], canUndo: true, canRedo: false })
   },
 
   reset: () => {
     past = []
     future = []
     burstActive = false
-    set({ widgets: [], selectedId: null, canUndo: false, canRedo: false })
+    set({ widgets: [], selectedId: null, selectedIds: [], canUndo: false, canRedo: false })
   },
 
   undo: () => {

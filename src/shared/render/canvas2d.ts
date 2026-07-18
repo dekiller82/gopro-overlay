@@ -55,6 +55,33 @@ export interface CanvasImageLike {
 }
 
 /**
+ * Fills a rounded-rect panel using only primitives already in Canvas2DLike (no native `roundRect`
+ * in this minimal interface) -- quadraticCurveTo with the actual corner point as control point
+ * approximates a circular corner closely enough for a flat UI background at typical radii. Used by
+ * every widget's background panel instead of a plain fillRect, so panels get soft corners instead
+ * of hard rectangular ones.
+ */
+export function fillRoundedRect(ctx: Canvas2DLike, x: number, y: number, w: number, h: number, radius: number): void {
+  const r = Math.max(0, Math.min(radius, w / 2, h / 2))
+  if (r === 0) {
+    ctx.fillRect(x, y, w, h)
+    return
+  }
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+  ctx.fill()
+}
+
+/**
  * Draws text with an optional outline (stroked first, then filled on top) -- used by every
  * text-bearing widget so on-screen numbers/labels stay readable over any video background.
  * `outlineWidth` is the *visible* outline thickness; canvas strokes are centered on the path, so

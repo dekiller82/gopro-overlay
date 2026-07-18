@@ -1,7 +1,7 @@
 import { convertSpeed, speedUnitLabel, type SpeedUnit } from '../units'
 import { DEFAULT_SPEED_SMOOTHING_MS } from '../telemetry/sampleAt'
 import { FORMULA1_BOLD } from './fonts'
-import { drawOutlinedText, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawOutlinedText, fillRoundedRect, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SpeedometerStyle {
   unit: SpeedUnit
@@ -16,6 +16,12 @@ export interface SpeedometerStyle {
   /** 0 disables the outline. */
   textOutlineWidth: number
   textOutlineColor: string
+  /** Panel background. Only drawn by the digital readout -- the analog gauge already has its own
+   *  circular dial as a visual background, a rectangular panel behind it would fight that look. */
+  backgroundColor: string
+  backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
 }
 
 export const DEFAULT_SPEEDOMETER_STYLE: SpeedometerStyle = {
@@ -27,7 +33,10 @@ export const DEFAULT_SPEEDOMETER_STYLE: SpeedometerStyle = {
   accentColor: '#ff3b30',
   showUnit: true,
   textOutlineWidth: 2,
-  textOutlineColor: '#000000'
+  textOutlineColor: '#000000',
+  backgroundColor: '#0a0a10',
+  backgroundOpacity: 0.72,
+  cornerRadius: 12
 }
 
 export interface DrawSpeedometerOptions {
@@ -44,6 +53,14 @@ export function drawSpeedometerDigital(ctx: Canvas2DLike, options: DrawSpeedomet
   const value = convertSpeed(speedMps, style.unit)
   const cx = rect.x + rect.w / 2
   const outlineWidth = scaleToRect(style.textOutlineWidth, rect)
+
+  if (style.backgroundOpacity > 0) {
+    ctx.save()
+    ctx.globalAlpha = style.backgroundOpacity
+    ctx.fillStyle = style.backgroundColor
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
+    ctx.restore()
+  }
 
   ctx.save()
   ctx.textAlign = 'center'

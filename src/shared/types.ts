@@ -158,6 +158,12 @@ export interface RollAngleWidgetInstance extends WidgetTransform {
   style: import('./render/drawRollAngle').RollAngleStyle
 }
 
+export interface SessionSummaryWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'sessionSummary'
+  style: import('./render/drawSessionSummary').SessionSummaryStyle
+}
+
 export type WidgetInstance =
   | GpsTrackWidgetInstance
   | SpeedometerAnalogWidgetInstance
@@ -170,6 +176,7 @@ export type WidgetInstance =
   | SpeedDistanceGraphWidgetInstance
   | GForceDiagramWidgetInstance
   | RollAngleWidgetInstance
+  | SessionSummaryWidgetInstance
 
 export interface ProjectPayload {
   imported: ImportResult
@@ -184,6 +191,14 @@ export interface ProjectPayload {
    *  what the plain elapsed-mode timer widget displays and what export actually renders. */
   trimStartMs: number
   trimEndMs: number
+}
+
+/** One entry in the "recently opened" list on the start screen -- persisted to a file in the app's
+ *  userData directory (see main/project/recentProjects.ts), not the project file itself. */
+export interface RecentProject {
+  path: string
+  name: string
+  lastOpenedAt: string
 }
 
 /** A saved, reusable whole-widget-layout template (positions/sizes/styles for every widget in a

@@ -244,7 +244,7 @@ export async function runExport(options: RunExportOptions): Promise<void> {
   const resolvedFfmpegPath: string = ffmpegPath
 
   const totalFrames = Math.max(1, Math.round(((trimEndMs - trimStartMs) / 1000) * settings.fps))
-  const renderFrame = await createFrameRenderer(settings.width, settings.height, widgets, sampler, startFinish)
+  const renderFrame = await createFrameRenderer(settings.width, settings.height, widgets, sampler, startFinish, trimEndMs)
 
   const encoder = await selectVideoEncoder(resolvedFfmpegPath, settings.preferGpu ?? true)
   console.log(`[export] using video encoder: ${encoder.label} (${encoder.codec})`)

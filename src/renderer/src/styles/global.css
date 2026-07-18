@@ -434,6 +434,12 @@ body {
   border-color: var(--accent);
 }
 
+/* Distinguishes the "primary" selection (the one the property panel is currently editing) from
+   other members of a multi-selection, which also get widget-box--selected's border. */
+.widget-box--primary {
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
 .widget-box__inner {
   width: 100%;
   height: 100%;

@@ -42,6 +42,12 @@ export interface GpsWidgetStyle {
   neutralColor: string
   /** braking mode: |acceleration| below this (m/s^2) counts as neutral, not braking/accelerating. */
   brakingThresholdMps2: number
+  /** Shows a second, smaller marker at the fastest completed lap's own position at the SAME elapsed
+   *  time into its lap as the current one (see DeltaState.ghostCts) -- a spatial "am I ahead or
+   *  behind" indicator, separate from Delta Time's numeric readout. Off by default: needs a
+   *  completed lap to exist, and not every layout wants a second dot on the track. */
+  showGhost: boolean
+  ghostColor: string
 }
 
 export const DEFAULT_GPS_STYLE: GpsWidgetStyle = {
@@ -57,7 +63,9 @@ export const DEFAULT_GPS_STYLE: GpsWidgetStyle = {
   brakingColor: '#ff3b30',
   acceleratingColor: '#3ddc71',
   neutralColor: '#ffffff',
-  brakingThresholdMps2: 1.5
+  brakingThresholdMps2: 1.5,
+  showGhost: false,
+  ghostColor: '#b026ff'
 }
 
 /** Per-segment color for 'speed' mode: lerps between slowColor/fastColor by this session's own
@@ -126,6 +134,10 @@ export interface DrawGpsWidgetOptions {
    *  so re-stroking potentially tens of thousands of individual segments every animation frame was
    *  pure waste. Falls back to drawing fresh (slow, but correct) when not provided. */
   coloredTrackImage?: CanvasImageLike | null
+  /** Only relevant when style.showGhost is true -- see DeltaState.ghostCts for why this is resolved
+   *  at the SAME elapsed time into the baseline lap, not the same distance. Null when no baseline
+   *  lap exists yet (e.g. still on the first timed lap), in which case no ghost is drawn. */
+  ghostPosition?: ProjectedPoint | null
 }
 
 /**
@@ -153,7 +165,7 @@ export function buildColoredGpsTrackCache(
 
 /** Draws the Quik-style GPS track: a line for the full lap/session shape plus a dot for current position. */
 export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions): void {
-  const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds, coloredTrackImage } = options
+  const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds, coloredTrackImage, ghostPosition } = options
   if (trackPoints.length === 0) return
 
   const project = createRectFitTransform(bounds, rect)
@@ -190,6 +202,17 @@ export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions):
     ctx.beginPath()
     tracePath(ctx, screenPoints)
     ctx.stroke()
+    ctx.restore()
+  }
+
+  if (style.showGhost && ghostPosition) {
+    const screenGhost = project(ghostPosition)
+    ctx.save()
+    ctx.globalAlpha = 0.75
+    ctx.fillStyle = style.ghostColor
+    ctx.beginPath()
+    ctx.arc(screenGhost.x, screenGhost.y, dotRadius * 0.75, 0, Math.PI * 2)
+    ctx.fill()
     ctx.restore()
   }
 

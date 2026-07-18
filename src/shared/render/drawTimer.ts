@@ -2,7 +2,7 @@ import { formatTime } from '../format'
 import type { LapHistoryEntry, LapState } from '../telemetry/laps'
 import { FORMULA1_REGULAR } from './fonts'
 import { DEFAULT_HEADER_LOGO_DATA_URL } from './defaultLogo'
-import { drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type CanvasImageLike, type Rect } from './canvas2d'
+import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type CanvasImageLike, type Rect } from './canvas2d'
 
 export type TimingTowerOrder = 'ranked' | 'chronological'
 export type TimingTowerChronoDirection = 'newestOnTop' | 'newestOnBottom'
@@ -33,6 +33,8 @@ export interface TimerStyle {
   /** Panel background behind the whole tower (mode: 'laps' only). backgroundOpacity 0 hides it entirely. */
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
 }
 
 export const DEFAULT_TIMER_STYLE: TimerStyle = {
@@ -51,7 +53,8 @@ export const DEFAULT_TIMER_STYLE: TimerStyle = {
   chronoDirection: 'newestOnTop',
   maxVisibleRows: 10,
   backgroundColor: '#0a0a10',
-  backgroundOpacity: 0.72
+  backgroundOpacity: 0.72,
+  cornerRadius: 12
 }
 
 export interface DrawTimerOptions {
@@ -128,7 +131,7 @@ function drawTimingTowerBackground(ctx: Canvas2DLike, rect: Rect, style: TimerSt
   ctx.save()
   ctx.globalAlpha = style.backgroundOpacity
   ctx.fillStyle = style.backgroundColor
-  ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+  fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
   ctx.restore()
 }
 

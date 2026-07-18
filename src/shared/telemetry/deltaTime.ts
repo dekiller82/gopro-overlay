@@ -19,6 +19,14 @@ export interface DeltaState {
   baselineLapMs: number | null
   /** baselineLapMs + deltaMs -- projected final time for the lap in progress at this pace. */
   predictedLapMs: number | null
+  /** Absolute cts to sample the baseline lap's own GPS position at, for a "ghost" marker on the GPS
+   *  Track widget -- deliberately the SAME ELAPSED TIME into the baseline lap as the current lap's
+   *  own elapsed time, not the same distance. Same-distance would place the ghost at nearly the same
+   *  physical spot on the track as the live dot always (distance-into-lap determines track position
+   *  almost independent of pace), showing no gap at all; same elapsed time is what makes the ghost
+   *  visibly ahead/behind on the track shape, matching how a racing-game ghost car works. Null until
+   *  a baseline lap exists. */
+  ghostCts: number | null
 }
 
 /** Cumulative GPS arc-length from `lapStartCts` to `cts`, walking only that lap's own samples (cheap
@@ -109,7 +117,7 @@ export function getDeltaStateAt(
 
   const completedCurves = curves.filter((c) => c.lapEndCts <= cts)
   if (completedCurves.length === 0) {
-    return { deltaMs: null, baselineLapMs: null, predictedLapMs: null }
+    return { deltaMs: null, baselineLapMs: null, predictedLapMs: null, ghostCts: null }
   }
 
   const baseline = completedCurves.reduce((best, c) => (c.totalTimeMs < best.totalTimeMs ? c : best))
@@ -117,10 +125,12 @@ export function getDeltaStateAt(
   const baselineTimeAtDistance = baseline.timeAtDistance(currentDistance)
   const currentElapsedMs = Math.max(0, cts - lapStartCts)
   const deltaMs = currentElapsedMs - baselineTimeAtDistance
+  const ghostCts = Math.min(baseline.lapStartCts + currentElapsedMs, baseline.lapEndCts)
 
   return {
     deltaMs,
     baselineLapMs: baseline.totalTimeMs,
-    predictedLapMs: baseline.totalTimeMs + deltaMs
+    predictedLapMs: baseline.totalTimeMs + deltaMs,
+    ghostCts
   }
 }

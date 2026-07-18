@@ -1,7 +1,7 @@
 import { formatTime } from '../format'
 import type { DeltaState } from '../telemetry/deltaTime'
 import { FORMULA1_BOLD, FORMULA1_REGULAR } from './fonts'
-import { drawFixedWidthText, drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface PredictiveLapTimerStyle {
   color: string
@@ -17,6 +17,8 @@ export interface PredictiveLapTimerStyle {
   textOutlineColor: string
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
 }
 
 export const DEFAULT_PREDICTIVE_LAP_TIMER_STYLE: PredictiveLapTimerStyle = {
@@ -29,7 +31,8 @@ export const DEFAULT_PREDICTIVE_LAP_TIMER_STYLE: PredictiveLapTimerStyle = {
   textOutlineWidth: 2,
   textOutlineColor: '#000000',
   backgroundColor: '#0a0a10',
-  backgroundOpacity: 0.72
+  backgroundOpacity: 0.72,
+  cornerRadius: 12
 }
 
 export interface DrawPredictiveLapTimerOptions {
@@ -67,7 +70,7 @@ export function drawPredictiveLapTimer(ctx: Canvas2DLike, options: DrawPredictiv
     ctx.save()
     ctx.globalAlpha = style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 

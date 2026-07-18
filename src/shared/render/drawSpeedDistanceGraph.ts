@@ -1,12 +1,14 @@
 import type { LapSpeedPoint, LapSpeedTrace } from '../telemetry/speedTrace'
 import { convertSpeed, speedUnitLabel, type SpeedUnit } from '../units'
 import { FORMULA1_BOLD } from './fonts'
-import { drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SpeedDistanceGraphStyle {
   unit: SpeedUnit
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
   gridColor: string
   gridOpacity: number
   axisLabelColor: string
@@ -36,6 +38,7 @@ export const DEFAULT_SPEED_DISTANCE_GRAPH_STYLE: SpeedDistanceGraphStyle = {
   unit: 'kmh',
   backgroundColor: '#0a0a10',
   backgroundOpacity: 0.72,
+  cornerRadius: 12,
   gridColor: '#ffffff',
   gridOpacity: 0.14,
   axisLabelColor: '#ffffff',
@@ -167,7 +170,7 @@ export function drawSpeedDistanceGraph(ctx: Canvas2DLike, options: DrawSpeedDist
     ctx.save()
     ctx.globalAlpha = style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 

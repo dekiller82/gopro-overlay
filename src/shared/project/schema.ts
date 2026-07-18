@@ -24,7 +24,9 @@ const gpsStyleSchema = z.object({
   brakingColor: z.string().default('#ff3b30'),
   acceleratingColor: z.string().default('#3ddc71'),
   neutralColor: z.string().default('#ffffff'),
-  brakingThresholdMps2: z.number().default(1.5)
+  brakingThresholdMps2: z.number().default(1.5),
+  showGhost: z.boolean().default(false),
+  ghostColor: z.string().default('#b026ff')
 })
 
 const speedometerStyleSchema = z.object({
@@ -36,7 +38,12 @@ const speedometerStyleSchema = z.object({
   accentColor: z.string(),
   showUnit: z.boolean(),
   textOutlineWidth: z.number(),
-  textOutlineColor: z.string()
+  textOutlineColor: z.string(),
+  // .default(...) -- background/cornerRadius added to the digital readout after this widget
+  // shipped (analog ignores them), so an already-saved project's widget still parses.
+  backgroundColor: z.string().default('#0a0a10'),
+  backgroundOpacity: z.number().default(0.72),
+  cornerRadius: z.number().default(12)
 })
 
 const latLonSchema = z.object({
@@ -60,7 +67,11 @@ const timerStyleSchema = z.object({
   chronoDirection: z.enum(['newestOnTop', 'newestOnBottom']),
   maxVisibleRows: z.number(),
   backgroundColor: z.string(),
-  backgroundOpacity: z.number()
+  backgroundOpacity: z.number(),
+  // .default(12) -- cornerRadius added to every background-having widget after these already
+  // shipped, so an already-saved project's widget (missing it) still parses with the same rounded
+  // look that's now the default for newly-created widgets, instead of failing outright.
+  cornerRadius: z.number().default(12)
 })
 
 const sectorTimerStyleSchema = z.object({
@@ -70,6 +81,7 @@ const sectorTimerStyleSchema = z.object({
   textOutlineColor: z.string(),
   backgroundColor: z.string(),
   backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12),
   showLastLapRow: z.boolean()
 })
 
@@ -82,7 +94,8 @@ const deltaTimeStyleSchema = z.object({
   textOutlineWidth: z.number(),
   textOutlineColor: z.string(),
   backgroundColor: z.string(),
-  backgroundOpacity: z.number()
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12)
 })
 
 const predictiveLapTimerStyleSchema = z.object({
@@ -95,7 +108,8 @@ const predictiveLapTimerStyleSchema = z.object({
   textOutlineWidth: z.number(),
   textOutlineColor: z.string(),
   backgroundColor: z.string(),
-  backgroundOpacity: z.number()
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12)
 })
 
 const apexSpeedCalloutStyleSchema = z.object({
@@ -105,6 +119,7 @@ const apexSpeedCalloutStyleSchema = z.object({
   textOutlineColor: z.string(),
   backgroundColor: z.string(),
   backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12),
   flashDurationMs: z.number(),
   minDropMps: z.number(),
   minGapMs: z.number(),
@@ -115,6 +130,7 @@ const speedDistanceGraphStyleSchema = z.object({
   unit: z.enum(['kmh', 'mph', 'kn']),
   backgroundColor: z.string(),
   backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12),
   gridColor: z.string(),
   gridOpacity: z.number(),
   axisLabelColor: z.string(),
@@ -202,6 +218,7 @@ const gForceDiagramStyleSchema = z.object({
   axisLabelColor: z.string(),
   backgroundColor: z.string(),
   backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12),
   dotColor: z.string(),
   dotRadius: z.number(),
   trailColor: z.string(),
@@ -223,6 +240,7 @@ const rollAngleStyleSchema = z.object({
   textOutlineColor: z.string(),
   backgroundColor: z.string(),
   backgroundOpacity: z.number(),
+  cornerRadius: z.number().default(12),
   smoothingMs: z.number(),
   maxAngleScale: z.number(),
   barColor: z.string(),
@@ -248,6 +266,28 @@ const rollAngleWidgetSchema = z.object({
   style: rollAngleStyleSchema
 })
 
+const sessionSummaryStyleSchema = z.object({
+  title: z.string(),
+  showLastSeconds: z.number(),
+  animationDurationMs: z.number(),
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  color: z.string(),
+  labelColor: z.string(),
+  accentColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number()
+})
+
+const sessionSummaryWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('sessionSummary'),
+  ...transformFields,
+  style: sessionSummaryStyleSchema
+})
+
 export const widgetSchema = z.discriminatedUnion('type', [
   gpsTrackWidgetSchema,
   speedometerAnalogWidgetSchema,
@@ -259,7 +299,8 @@ export const widgetSchema = z.discriminatedUnion('type', [
   apexSpeedCalloutWidgetSchema,
   speedDistanceGraphWidgetSchema,
   gForceDiagramWidgetSchema,
-  rollAngleWidgetSchema
+  rollAngleWidgetSchema,
+  sessionSummaryWidgetSchema
 ])
 
 export const videoMetaSchema = z.object({

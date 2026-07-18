@@ -23,6 +23,9 @@ function Editor(): React.JSX.Element {
   const sampler = useTelemetrySampler(imported)
   const undo = useWidgetStore((s) => s.undo)
   const redo = useWidgetStore((s) => s.redo)
+  const selectedIds = useWidgetStore((s) => s.selectedIds)
+  const moveWidgetsBy = useWidgetStore((s) => s.moveWidgetsBy)
+  const removeWidgets = useWidgetStore((s) => s.removeWidgets)
 
   // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (or +Y) for widget-edit undo/redo -- skipped while a text/select
   // input has focus so it doesn't fight a property panel text field's own native undo.
@@ -52,6 +55,42 @@ function Editor(): React.JSX.Element {
     width: rect.width,
     height: rect.height
   }
+
+  // Arrow-key nudge (1px, or 10px with shift) + Delete/Backspace, moving/removing every widget in
+  // the current selection together -- only active while at least one widget is selected, so it
+  // never fires while the user is just scrubbing the timeline with nothing selected. Timeline's own
+  // ArrowLeft/ArrowRight frame-step handler defers to this one (bails out) whenever a widget is
+  // selected, so the two can't both react to the same keypress.
+  useEffect(() => {
+    if (selectedIds.length === 0) return
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement | null
+      if (target && EDITABLE_TAGS.has(target.tagName)) return
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        removeWidgets(selectedIds)
+        return
+      }
+
+      const nudgePx = e.shiftKey ? 10 : 1
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        moveWidgetsBy(selectedIds, -nudgePx / rect.width, 0)
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        moveWidgetsBy(selectedIds, nudgePx / rect.width, 0)
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        moveWidgetsBy(selectedIds, 0, -nudgePx / rect.height)
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        moveWidgetsBy(selectedIds, 0, nudgePx / rect.height)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedIds, moveWidgetsBy, removeWidgets, rect.width, rect.height])
 
   return (
     <div className="editor">

@@ -1,7 +1,7 @@
 import type { ApexEvent } from '../telemetry/apex'
 import { convertSpeed, speedUnitLabel, type SpeedUnit } from '../units'
 import { FORMULA1_BOLD } from './fonts'
-import { drawFixedWidthText, drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface ApexSpeedCalloutStyle {
   unit: SpeedUnit
@@ -11,6 +11,8 @@ export interface ApexSpeedCalloutStyle {
   textOutlineColor: string
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
   /** How long the callout stays visible after each detected apex, ms. */
   flashDurationMs: number
   /** Minimum speed drop (m/s) on BOTH sides of a dip to count as a real apex, not track noise. */
@@ -28,6 +30,7 @@ export const DEFAULT_APEX_SPEED_CALLOUT_STYLE: ApexSpeedCalloutStyle = {
   textOutlineColor: '#000000',
   backgroundColor: '#0a0a10',
   backgroundOpacity: 0.72,
+  cornerRadius: 12,
   flashDurationMs: 3000,
   minDropMps: 8,
   minGapMs: 1500,
@@ -81,7 +84,7 @@ export function drawApexSpeedCallout(ctx: Canvas2DLike, options: DrawApexSpeedCa
     ctx.save()
     ctx.globalAlpha = alpha * style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 

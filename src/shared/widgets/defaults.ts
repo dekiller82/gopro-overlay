@@ -9,6 +9,7 @@ import { DEFAULT_APEX_SPEED_CALLOUT_STYLE } from '../render/drawApexSpeedCallout
 import { DEFAULT_SPEED_DISTANCE_GRAPH_STYLE } from '../render/drawSpeedDistanceGraph'
 import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '../render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '../render/drawRollAngle'
+import { DEFAULT_SESSION_SUMMARY_STYLE } from '../render/drawSessionSummary'
 import type {
   GpsTrackWidgetInstance,
   SpeedometerAnalogWidgetInstance,
@@ -21,6 +22,7 @@ import type {
   SpeedDistanceGraphWidgetInstance,
   GForceDiagramWidgetInstance,
   RollAngleWidgetInstance,
+  SessionSummaryWidgetInstance,
   WidgetInstance
 } from '../types'
 
@@ -181,6 +183,22 @@ export function createRollAngleWidget(): RollAngleWidgetInstance {
   }
 }
 
+export function createSessionSummaryWidget(): SessionSummaryWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'sessionSummary',
+    // Sized as a real end-card, not a small corner widget -- centered, covering a large share of
+    // the frame, matching how it's meant to be used (a full-screen-ish reveal near the very end).
+    x: 0.2,
+    y: 0.15,
+    w: 0.6,
+    h: 0.7,
+    rotation: 0,
+    zIndex: 10,
+    style: { ...DEFAULT_SESSION_SUMMARY_STYLE }
+  }
+}
+
 export function createWidget(type: WidgetInstance['type']): WidgetInstance {
   switch (type) {
     case 'gpsTrack':
@@ -205,5 +223,7 @@ export function createWidget(type: WidgetInstance['type']): WidgetInstance {
       return createGForceDiagramWidget()
     case 'rollAngle':
       return createRollAngleWidget()
+    case 'sessionSummary':
+      return createSessionSummaryWidget()
   }
 }

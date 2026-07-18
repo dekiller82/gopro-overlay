@@ -18,6 +18,7 @@ import { drawApexSpeedCallout } from './drawApexSpeedCallout'
 import { drawSpeedDistanceGraph } from './drawSpeedDistanceGraph'
 import { drawGForceDiagram } from './drawGForceDiagram'
 import { drawRollAngle } from './drawRollAngle'
+import { drawSessionSummary, type SessionSummaryData } from './drawSessionSummary'
 
 export interface WidgetDrawContext {
   trackPoints: ProjectedPoint[]
@@ -48,6 +49,10 @@ export interface WidgetDrawContext {
    *  buildColoredGpsTrackCache. Pre-rendered by the caller once and reused across frames instead of
    *  re-stroking every track segment on every single frame. */
   coloredTrackImage?: CanvasImageLike | null
+  /** Only relevant for a 'gpsTrack' widget with style.showGhost -- see DeltaState.ghostCts /
+   *  drawGpsWidget's own doc comment for why this is resolved at the baseline lap's matching
+   *  elapsed time, not distance. Resolved by the caller via sampler.positionAt(deltaState.ghostCts). */
+  ghostPosition?: ProjectedPoint | null
   /** Only relevant for a 'speedDistanceGraph' widget -- completed-lap traces are shared/precomputed
    *  once (don't depend on cts); the current-lap trace is resolved fresh every frame. */
   lapSpeedTraces?: LapSpeedTrace[]
@@ -58,6 +63,11 @@ export interface WidgetDrawContext {
   gForceHistory?: GForceHistoryPoint[]
   rollAngleReading?: RollAngleReading
   hasImuData?: boolean
+  /** Only relevant for a 'sessionSummary' widget. */
+  sessionSummaryData?: SessionSummaryData
+  /** Only relevant for a 'sessionSummary' widget -- absolute cts (same space as `cts`) at which the
+   *  trimmed session ends; style.showLastSeconds counts back from here. */
+  sessionEndMs?: number
 }
 
 function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Rect, data: WidgetDrawContext): void {
@@ -72,7 +82,8 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         trackSpeeds: data.trackSpeeds,
         trackCts: data.trackCts,
         speedBounds: data.speedBounds,
-        coloredTrackImage: data.coloredTrackImage
+        coloredTrackImage: data.coloredTrackImage,
+        ghostPosition: data.ghostPosition
       })
       return
     case 'speedometerAnalog':
@@ -127,6 +138,16 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         style: widget.style,
         reading: data.rollAngleReading ?? { degrees: 0, source: 'accelFallback' },
         hasImuData: data.hasImuData ?? false
+      })
+      return
+    case 'sessionSummary':
+      if (!data.sessionSummaryData || data.sessionEndMs == null) return
+      drawSessionSummary(ctx, {
+        rect,
+        style: widget.style,
+        data: data.sessionSummaryData,
+        cts: data.cts,
+        sessionEndMs: data.sessionEndMs
       })
       return
   }

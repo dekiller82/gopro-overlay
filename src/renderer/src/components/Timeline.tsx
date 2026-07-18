@@ -2,6 +2,7 @@ import { RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { formatTime } from '@shared/format'
 import { clipIndexAtGlobalMs } from '@shared/timeline/clipTiming'
 import { useProjectStore } from '../store/projectStore'
+import { useWidgetStore } from '../store/widgetStore'
 import type { PlayerApi } from './VideoPlayer'
 
 interface Props {
@@ -23,6 +24,7 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   const setTrim = useProjectStore((s) => s.setTrim)
+  const widgetSelectedIds = useWidgetStore((s) => s.selectedIds)
 
   const trackRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<DragMode>(null)
@@ -150,6 +152,9 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
     const onKeyDown = (e: KeyboardEvent): void => {
       const activeTag = document.activeElement?.tagName
       if (activeTag && EDITABLE_TAGS.has(activeTag)) return
+      // While a widget is selected, ArrowLeft/ArrowRight nudge its position instead (see Editor.tsx)
+      // -- defer to that handler entirely rather than also stepping the frame on the same keypress.
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && widgetSelectedIds.length > 0) return
       if (e.key === 'ArrowLeft') {
         e.preventDefault()
         stepFrame(-1)
@@ -163,7 +168,7 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [stepFrame, togglePlay])
+  }, [stepFrame, togglePlay, widgetSelectedIds])
 
   if (!imported) return null
 

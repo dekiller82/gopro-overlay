@@ -22,7 +22,10 @@ export async function createFrameRenderer(
   height: number,
   widgets: WidgetInstance[],
   sampler: TelemetrySampler,
-  startFinish: LatLon | null
+  startFinish: LatLon | null,
+  /** Absolute cts (same space as sampleCts) at which the trimmed session ends -- only needed for
+   *  the Session Summary widget's showLastSeconds countdown. */
+  trimEndMs: number
 ): Promise<(sampleCts: number, elapsedMs: number) => Buffer> {
   registerExportFonts()
 
@@ -92,6 +95,23 @@ export async function createFrameRenderer(
     const sectorState = sectorBoundaries ? getSectorStateAt(sectorBoundaries, sampleCts) : null
     const deltaState =
       crossings && lapDistanceCurves ? getDeltaStateAt(lapDistanceCurves, crossings, sampler.samples, sampleCts) : null
+    // GPS Track's optional "ghost" marker -- shared across every gpsTrack widget instance, same as
+    // deltaState itself, resolved once per frame rather than per widget.
+    const ghostPosition = deltaState?.ghostCts != null ? sampler.positionAt(deltaState.ghostCts) : null
+    // Session Summary widget's data -- shared across every instance, same reasoning as
+    // WidgetLayer.tsx's live-preview path. `elapsedMs` (trim-relative, see the comment above) is
+    // exactly the "elapsed since trimmed session start" value this needs, already computed by the caller.
+    const sessionStats = sampler.sessionStatsAt(sampleCts)
+    const sessionSummaryData = {
+      totalLaps: lapState?.history.length ?? 0,
+      bestLapMs: lapState?.bestLapMs ?? null,
+      bestS1Ms: sectorState?.bestS1Ms ?? null,
+      bestS2Ms: sectorState?.bestS2Ms ?? null,
+      bestS3Ms: sectorState?.bestS3Ms ?? null,
+      topSpeedMps: sessionStats.maxSpeedMps,
+      totalDistanceM: sessionStats.totalDistanceM,
+      elapsedMs
+    }
     const currentLapSpeedTrace = crossings ? computeCurrentLapSpeedTrace(sampler.samples, crossings, sampleCts) : null
     const lapSpeedTraces = crossings ? allLapSpeedTraces.filter((t) => crossings[t.lapNumber] <= sampleCts) : []
 
@@ -131,6 +151,9 @@ export async function createFrameRenderer(
         lapState,
         sectorState,
         deltaState,
+        ghostPosition,
+        sessionSummaryData,
+        sessionEndMs: trimEndMs,
         apexEvents: apexEventsByWidgetId.get(widget.id) ?? [],
         headerImage: headerImageByWidgetId.get(widget.id) ?? null,
         fastestLapIcon,

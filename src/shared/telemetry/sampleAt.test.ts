@@ -138,3 +138,52 @@ describe('createTelemetrySampler IMU methods (gForceAt/gForceHistoryAt/rollAngle
     expect(Math.abs(reading.degrees)).toBeLessThan(2)
   })
 })
+
+describe('createTelemetrySampler sessionStatsAt (Session Summary widget)', () => {
+  // Straight line north, constant step size -> equal distance per sample; speed2D deliberately
+  // varies (not derived from the GPS movement itself) so max-speed and distance can be asserted
+  // independently of each other.
+  const samples = [
+    makeSample(0, { lat: 51.5, lon: -0.1, speed2D: 10 }),
+    makeSample(1000, { lat: 51.501, lon: -0.1, speed2D: 25 }), // fastest point
+    makeSample(2000, { lat: 51.502, lon: -0.1, speed2D: 15 }),
+    makeSample(3000, { lat: 51.503, lon: -0.1, speed2D: 20 })
+  ]
+
+  it('reports zero distance/speed at the very first sample', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    const stats = sampler.sessionStatsAt(0)
+    expect(stats.totalDistanceM).toBeCloseTo(0, 3)
+    expect(stats.maxSpeedMps).toBe(10)
+  })
+
+  it('accumulates distance and tracks the running max speed up to cts', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    const stats = sampler.sessionStatsAt(2000)
+    // Distance from sample 0->1->2, each leg the same size (equal lat steps) -- should be ~2x one leg.
+    const oneLegM = createTelemetrySampler(makeTelemetry(samples)).sessionStatsAt(1000).totalDistanceM
+    expect(stats.totalDistanceM).toBeCloseTo(oneLegM * 2, 1)
+    expect(stats.maxSpeedMps).toBe(25) // peak was at t=1000, already passed by t=2000
+  })
+
+  // Confirmed as a real, deliberate design choice, not an oversight: this must stay bounded by cts
+  // so scrubbing the editor to earlier than the true session end never shows a later peak/total
+  // that "hasn't happened yet" from that point of view -- same discipline as lap/sector state.
+  it('never leaks a later peak speed in when queried before it occurs', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    const stats = sampler.sessionStatsAt(500) // before the t=1000 speed=25 peak
+    expect(stats.maxSpeedMps).toBe(10)
+  })
+
+  it('reports the full session totals once queried at/after the last sample', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    const stats = sampler.sessionStatsAt(3000)
+    expect(stats.maxSpeedMps).toBe(25)
+    expect(stats.totalDistanceM).toBeGreaterThan(0)
+  })
+
+  it('handles an empty sample array without throwing', () => {
+    const sampler = createTelemetrySampler(makeTelemetry([]))
+    expect(sampler.sessionStatsAt(1000)).toEqual({ totalDistanceM: 0, maxSpeedMps: 0 })
+  })
+})

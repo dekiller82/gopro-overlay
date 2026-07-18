@@ -1,6 +1,6 @@
 import type { GForceHistoryPoint, GForceReading } from '../telemetry/sampleAt'
 import { FORMULA1_BOLD } from './fonts'
-import { drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface GForceDiagramStyle {
   /** Grid radius, in G -- how many G's the outer ring represents. */
@@ -10,6 +10,8 @@ export interface GForceDiagramStyle {
   axisLabelColor: string
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
   dotColor: string
   dotRadius: number
   trailColor: string
@@ -33,6 +35,7 @@ export const DEFAULT_GFORCE_DIAGRAM_STYLE: GForceDiagramStyle = {
   axisLabelColor: '#ffffff',
   backgroundColor: '#0a0a10',
   backgroundOpacity: 0.72,
+  cornerRadius: 12,
   dotColor: '#ff3b30',
   dotRadius: 7,
   trailColor: '#ff3b30',
@@ -76,7 +79,7 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
     ctx.save()
     ctx.globalAlpha = style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 

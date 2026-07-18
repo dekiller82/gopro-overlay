@@ -1,6 +1,7 @@
 import type { ImuSample, TelemetryData, TelemetrySample } from '../types'
 import { findBracketIndex, gaussianSmoothedValueAt, positionAt, projectTrack, smoothTrackPoints, type ProjectedPoint } from './interpolate'
 import { applyCalibration, calibrateAxes, GRAVITY_MPS2, type AxisCalibration } from './imuCalibration'
+import { distanceMeters } from './laps'
 
 export interface TrackBounds {
   minX: number
@@ -24,6 +25,15 @@ export interface RollAngleReading {
    *  contamination) or the accelerometer-tilt fallback (reads exaggerated during hard cornering --
    *  see shared/render/drawRollAngle.ts). */
   source: 'gravity' | 'accelFallback'
+}
+
+export interface SessionStats {
+  /** Cumulative GPS arc-length from the very start of the recording up to `cts`, meters. */
+  totalDistanceM: number
+  /** Fastest speed2D reached anywhere up to `cts`, m/s -- deliberately bounded by `cts` (not the
+   *  whole session's precomputed max) so this stays correct if scrubbed to earlier than the actual
+   *  session end, same "never leak future data" discipline as lap/sector state. */
+  maxSpeedMps: number
 }
 
 export interface TelemetrySampler {
@@ -64,6 +74,10 @@ export interface TelemetrySampler {
    *  raw-accelerometer-tilt fallback (see RollAngleReading.source). Only the vertical/lateral axes of
    *  `calibrationOverride` matter here (longitudinal is irrelevant to roll). */
   rollAngleAt: (cts: number, smoothingMs?: number, calibrationOverride?: AxisCalibration) => RollAngleReading
+  /** Total distance covered and fastest speed reached, both bounded to "up to `cts`" -- for the
+   *  Session Summary widget. Precomputed once as parallel prefix arrays (like trackSpeeds), not
+   *  recomputed per query. */
+  sessionStatsAt: (cts: number) => SessionStats
 }
 
 const MIN_SMOOTHING_MS = 60
@@ -86,6 +100,24 @@ function computeBounds(points: ProjectedPoint[]): TrackBounds {
   return { minX, maxX, minY, maxY }
 }
 
+/** Parallel prefix arrays (1:1 index-aligned with `samples`): cumulative arc-length distance and
+ *  running-max speed up to and including that sample index. Computed once per sampler, same cost
+ *  class as trackSpeeds/trackCts, so sessionStatsAt is a cheap index lookup per query rather than
+ *  an O(n) rescan every frame. */
+function computeSessionStatsCurve(samples: TelemetrySample[]): { cumDistanceM: number[]; runningMaxSpeedMps: number[] } {
+  const cumDistanceM: number[] = new Array(samples.length)
+  const runningMaxSpeedMps: number[] = new Array(samples.length)
+  let cum = 0
+  let maxSpeed = 0
+  for (let i = 0; i < samples.length; i++) {
+    if (i > 0) cum += distanceMeters(samples[i - 1], samples[i])
+    maxSpeed = Math.max(maxSpeed, samples[i].speed2D)
+    cumDistanceM[i] = cum
+    runningMaxSpeedMps[i] = maxSpeed
+  }
+  return { cumDistanceM, runningMaxSpeedMps }
+}
+
 function computeSpeedBounds(speeds: number[]): { min: number; max: number } {
   if (speeds.length === 0) return { min: 0, max: 0 }
   let min = speeds[0]
@@ -106,6 +138,13 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
   const trackSpeeds = samples.map((s) => s.speed2D)
   const trackCts = samples.map((s) => s.cts)
   const speedBounds = computeSpeedBounds(trackSpeeds)
+  const sessionStatsCurve = computeSessionStatsCurve(samples)
+
+  function sessionStatsAt(cts: number): SessionStats {
+    if (samples.length === 0) return { totalDistanceM: 0, maxSpeedMps: 0 }
+    const idx = findBracketIndex(samples, cts)
+    return { totalDistanceM: sessionStatsCurve.cumDistanceM[idx], maxSpeedMps: sessionStatsCurve.runningMaxSpeedMps[idx] }
+  }
 
   const accel = telemetry.accel
   const gravity = telemetry.gravity
@@ -161,6 +200,7 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
     defaultAxisCalibration,
     gForceAt,
     gForceHistoryAt,
-    rollAngleAt
+    rollAngleAt,
+    sessionStatsAt
   }
 }

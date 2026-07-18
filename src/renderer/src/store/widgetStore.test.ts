@@ -106,3 +106,105 @@ describe('widgetStore undo/redo', () => {
     expect(useWidgetStore.getState().widgets).toEqual(beforeApply)
   })
 })
+
+describe('widgetStore multi-select', () => {
+  function addThreeWidgets(): [string, string, string] {
+    useWidgetStore.getState().addWidget('timer')
+    useWidgetStore.getState().addWidget('sectorTimer')
+    useWidgetStore.getState().addWidget('deltaTime')
+    const [a, b, c] = useWidgetStore.getState().widgets.map((w) => w.id)
+    return [a, b, c]
+  }
+
+  it('a plain select replaces the whole selection with just one widget', () => {
+    const [a, b] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b)
+    expect(useWidgetStore.getState().selectedId).toBe(b)
+    expect(useWidgetStore.getState().selectedIds).toEqual([b])
+  })
+
+  it('shift-click (additive) adds to the selection instead of replacing it', () => {
+    const [a, b] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b, true)
+    expect(useWidgetStore.getState().selectedIds).toEqual([a, b])
+    expect(useWidgetStore.getState().selectedId).toBe(b) // most recently (shift-)clicked becomes primary
+  })
+
+  it('shift-clicking an already-selected member removes it from the selection', () => {
+    const [a, b, c] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b, true)
+    useWidgetStore.getState().selectWidget(c, true)
+    useWidgetStore.getState().selectWidget(b, true) // shift-click b again -> removed
+    expect(useWidgetStore.getState().selectedIds).toEqual([a, c])
+  })
+
+  it('removing the primary via shift-click falls back to the last remaining member', () => {
+    const [a, b] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b, true) // selectedId now b
+    useWidgetStore.getState().selectWidget(b, true) // shift-click b again -> removed, was primary
+    expect(useWidgetStore.getState().selectedIds).toEqual([a])
+    expect(useWidgetStore.getState().selectedId).toBe(a)
+  })
+
+  it('selectWidget(null) clears the selection entirely regardless of additive', () => {
+    const [a, b] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b, true)
+    useWidgetStore.getState().selectWidget(null)
+    expect(useWidgetStore.getState().selectedId).toBeNull()
+    expect(useWidgetStore.getState().selectedIds).toEqual([])
+  })
+
+  it('moveWidgetsBy shifts every listed widget by the same fraction delta, leaving others untouched', () => {
+    const [a, b, c] = addThreeWidgets()
+    const before = Object.fromEntries(useWidgetStore.getState().widgets.map((w) => [w.id, { x: w.x, y: w.y }]))
+
+    useWidgetStore.getState().moveWidgetsBy([a, c], 0.1, -0.05)
+
+    const after = Object.fromEntries(useWidgetStore.getState().widgets.map((w) => [w.id, { x: w.x, y: w.y }]))
+    expect(after[a].x).toBeCloseTo(before[a].x + 0.1)
+    expect(after[a].y).toBeCloseTo(before[a].y - 0.05)
+    expect(after[c].x).toBeCloseTo(before[c].x + 0.1)
+    expect(after[c].y).toBeCloseTo(before[c].y - 0.05)
+    expect(after[b]).toEqual(before[b]) // not in the moved set -- untouched
+  })
+
+  it('moveWidgetsBy is a single undo step for the whole group', () => {
+    vi.useFakeTimers()
+    const [a, b] = addThreeWidgets()
+    vi.advanceTimersByTime(600)
+    const before = useWidgetStore.getState().widgets
+
+    useWidgetStore.getState().moveWidgetsBy([a, b], 0.2, 0.2)
+    useWidgetStore.getState().undo()
+    expect(useWidgetStore.getState().widgets).toEqual(before)
+  })
+
+  it('removeWidgets deletes every listed widget and prunes them from the selection', () => {
+    const [a, b, c] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b, true)
+    useWidgetStore.getState().selectWidget(c, true) // all three selected, c primary
+
+    useWidgetStore.getState().removeWidgets([a, b])
+
+    expect(useWidgetStore.getState().widgets.map((w) => w.id)).toEqual([c])
+    expect(useWidgetStore.getState().selectedIds).toEqual([c])
+    expect(useWidgetStore.getState().selectedId).toBe(c)
+  })
+
+  it('removeWidgets falls back to another remaining member when the primary is deleted', () => {
+    const [a, b] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a)
+    useWidgetStore.getState().selectWidget(b, true) // b is primary
+
+    useWidgetStore.getState().removeWidgets([b])
+
+    expect(useWidgetStore.getState().selectedId).toBe(a)
+    expect(useWidgetStore.getState().selectedIds).toEqual([a])
+  })
+})

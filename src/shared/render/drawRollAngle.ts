@@ -1,6 +1,6 @@
 import type { RollAngleReading } from '../telemetry/sampleAt'
 import { FORMULA1_BOLD } from './fonts'
-import { drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface RollAngleStyle {
   color: string
@@ -11,6 +11,8 @@ export interface RollAngleStyle {
   textOutlineColor: string
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
   smoothingMs: number
   /** Degrees represented by the tilt bar's full swing to either side, e.g. 45. */
   maxAngleScale: number
@@ -35,6 +37,7 @@ export const DEFAULT_ROLL_ANGLE_STYLE: RollAngleStyle = {
   textOutlineColor: '#000000',
   backgroundColor: '#0a0a10',
   backgroundOpacity: 0.72,
+  cornerRadius: 12,
   smoothingMs: 150,
   maxAngleScale: 45,
   barColor: '#ff3b30',
@@ -67,7 +70,7 @@ export function drawRollAngle(ctx: Canvas2DLike, options: DrawRollAngleOptions):
     ctx.save()
     ctx.globalAlpha = style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 

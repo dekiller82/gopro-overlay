@@ -1,7 +1,7 @@
 import { formatTime } from '../format'
 import type { SectorState } from '../telemetry/sectors'
 import { FORMULA1_BOLD } from './fonts'
-import { drawFixedWidthText, drawOutlinedText, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SectorTimerStyle {
   color: string
@@ -12,6 +12,8 @@ export interface SectorTimerStyle {
   /** Panel background behind the widget. backgroundOpacity 0 hides it entirely. */
   backgroundColor: string
   backgroundOpacity: number
+  /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
+  cornerRadius: number
   /** Adds a smaller secondary row below showing the last fully completed lap's own S1/S2/S3. */
   showLastLapRow: boolean
 }
@@ -23,6 +25,7 @@ export const DEFAULT_SECTOR_TIMER_STYLE: SectorTimerStyle = {
   textOutlineColor: '#000000',
   backgroundColor: '#0a0a10',
   backgroundOpacity: 0.72,
+  cornerRadius: 12,
   showLastLapRow: false
 }
 
@@ -102,7 +105,7 @@ export function drawSectorTimer(ctx: Canvas2DLike, options: DrawSectorTimerOptio
     ctx.save()
     ctx.globalAlpha = style.backgroundOpacity
     ctx.fillStyle = style.backgroundColor
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+    fillRoundedRect(ctx, rect.x, rect.y, rect.w, rect.h, scaleToRect(style.cornerRadius, rect))
     ctx.restore()
   }
 
