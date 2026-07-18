@@ -1,6 +1,6 @@
 import type { ProjectedPoint } from '../telemetry/interpolate'
 import type { TrackBounds } from '../telemetry/sampleAt'
-import { lerpColor, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
+import { lerpColor, scaleToRect, type Canvas2DLike, type CanvasImageLike, type Rect } from './canvas2d'
 import { createRectFitTransform } from './layout'
 
 /** Traces a smooth curve through every point (quadratic segments via midpoints, each raw point as
@@ -79,8 +79,9 @@ function brakingSegmentColor(style: GpsWidgetStyle, speedA: number, speedB: numb
 
 /** Draws the track as individually-colored straight segments (not the smooth quadratic curve --
  *  per-segment coloring and curve smoothing don't compose, a deliberate trade-off) for the 'speed'
- *  and 'braking' color modes. */
-function drawColoredTrackSegments(
+ *  and 'braking' color modes. Exported so callers can pre-render this once into an offscreen cache
+ *  (see buildColoredGpsTrackCache) instead of paying its full per-segment cost every frame. */
+export function drawColoredTrackSegments(
   ctx: Canvas2DLike,
   screenPoints: ProjectedPoint[],
   style: GpsWidgetStyle,
@@ -120,15 +121,42 @@ export interface DrawGpsWidgetOptions {
   trackSpeeds?: number[]
   trackCts?: number[]
   speedBounds?: { min: number; max: number }
+  /** Pre-rendered colorMode 'speed'/'braking' track, built once by buildColoredGpsTrackCache and
+   *  reused across frames -- the colored segments never change frame-to-frame (only the dot does),
+   *  so re-stroking potentially tens of thousands of individual segments every animation frame was
+   *  pure waste. Falls back to drawing fresh (slow, but correct) when not provided. */
+  coloredTrackImage?: CanvasImageLike | null
+}
+
+/**
+ * Pre-renders the colorMode 'speed'/'braking' track once into `cacheCtx` (an offscreen canvas
+ * sized to exactly `rect.w` x `rect.h`, at rect {0,0,w,h}), for reuse via DrawGpsWidgetOptions.coloredTrackImage.
+ * Callers should rebuild this only when its actual inputs change (style/track data/pixel size),
+ * not every frame -- see WidgetCanvas.tsx and frameRenderer.ts for the caching call sites.
+ */
+export function buildColoredGpsTrackCache(
+  cacheCtx: Canvas2DLike,
+  trackPoints: ProjectedPoint[],
+  bounds: TrackBounds,
+  rect: Rect,
+  style: GpsWidgetStyle,
+  trackSpeeds: number[],
+  trackCts: number[],
+  speedBounds: { min: number; max: number }
+): void {
+  cacheCtx.clearRect(0, 0, rect.w, rect.h)
+  const project = createRectFitTransform(bounds, rect)
+  const screenPoints = trackPoints.map(project)
+  const lineWidth = scaleToRect(style.lineWidth, rect)
+  drawColoredTrackSegments(cacheCtx, screenPoints, style, lineWidth, trackSpeeds, trackCts, speedBounds)
 }
 
 /** Draws the Quik-style GPS track: a line for the full lap/session shape plus a dot for current position. */
 export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions): void {
-  const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds } = options
+  const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds, coloredTrackImage } = options
   if (trackPoints.length === 0) return
 
   const project = createRectFitTransform(bounds, rect)
-  const screenPoints = trackPoints.map(project)
   const screenDot = project(dotPosition)
 
   // lineWidth/dotRadius are nominal pixel values tuned at a reference box size -- scaled here so
@@ -138,10 +166,21 @@ export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions):
   const lineWidth = scaleToRect(style.lineWidth, rect)
   const dotRadius = scaleToRect(style.dotRadius, rect)
 
-  const canColor = style.colorMode !== 'solid' && trackSpeeds && trackCts && speedBounds && screenPoints.length > 1
-  if (canColor) {
+  const canColor = style.colorMode !== 'solid' && trackSpeeds && trackCts && speedBounds && trackPoints.length > 1
+  if (canColor && coloredTrackImage) {
+    // The cache already has style.lineOpacity baked into its own pixels (drawColoredTrackSegments
+    // applies it while building the cache) -- compositing it at globalAlpha 1 here reproduces
+    // exactly the same pixels as the fresh-draw path, including how overlapping segments (e.g. two
+    // laps tracing the same stretch of road) blend with each other.
+    ctx.save()
+    ctx.globalAlpha = 1
+    ctx.drawImage(coloredTrackImage, rect.x, rect.y, rect.w, rect.h)
+    ctx.restore()
+  } else if (canColor) {
+    const screenPoints = trackPoints.map(project)
     drawColoredTrackSegments(ctx, screenPoints, style, lineWidth, trackSpeeds!, trackCts!, speedBounds!)
   } else {
+    const screenPoints = trackPoints.map(project)
     ctx.save()
     ctx.globalAlpha = style.lineOpacity
     ctx.strokeStyle = style.lineColor

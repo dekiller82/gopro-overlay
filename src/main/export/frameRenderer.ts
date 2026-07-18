@@ -1,6 +1,7 @@
 import { createCanvas, type Image } from '@napi-rs/canvas'
 import { drawWidget } from '../../shared/render/drawWidget'
-import type { Canvas2DLike, Rect } from '../../shared/render/canvas2d'
+import { buildColoredGpsTrackCache } from '../../shared/render/drawGpsWidget'
+import type { Canvas2DLike, CanvasImageLike, Rect } from '../../shared/render/canvas2d'
 import type { TelemetrySampler } from '../../shared/telemetry/sampleAt'
 import { detectLapCrossings, getLapStateAt } from '../../shared/telemetry/laps'
 import { computeLapSectors, getSectorStateAt } from '../../shared/telemetry/sectors'
@@ -43,6 +44,10 @@ export async function createFrameRenderer(
   // Apex detection thresholds are per-widget style (not shared like lap/sector/delta state), so
   // precomputed once per widget instance here rather than once globally.
   const apexEventsByWidgetId = new Map<string, ApexEvent[]>()
+  // colorMode 'speed'/'braking' segments are static for the whole export (only the dot moves), so
+  // built once here rather than re-stroked from scratch on every one of potentially thousands of
+  // exported frames -- same reasoning as WidgetCanvas.tsx's live-preview cache.
+  const coloredTrackImageByWidgetId = new Map<string, CanvasImageLike>()
   let usesFastestLapIcon = false
 
   for (const widget of sortedWidgets) {
@@ -54,6 +59,22 @@ export async function createFrameRenderer(
     }
     if (widget.type === 'apexSpeedCallout') {
       apexEventsByWidgetId.set(widget.id, detectApexEvents(sampler.samples, widget.style.minDropMps, widget.style.minGapMs))
+    }
+    if (widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid') {
+      const rect: Rect = { x: widget.x * width, y: widget.y * height, w: widget.w * width, h: widget.h * height }
+      const cacheCanvas = createCanvas(Math.max(1, Math.round(rect.w)), Math.max(1, Math.round(rect.h)))
+      const cacheCtx = cacheCanvas.getContext('2d')
+      buildColoredGpsTrackCache(
+        cacheCtx as unknown as Canvas2DLike,
+        sampler.trackPoints,
+        sampler.bounds,
+        { x: 0, y: 0, w: rect.w, h: rect.h },
+        widget.style,
+        sampler.trackSpeeds,
+        sampler.trackCts,
+        sampler.speedBounds
+      )
+      coloredTrackImageByWidgetId.set(widget.id, cacheCanvas as unknown as CanvasImageLike)
     }
   }
 
@@ -116,6 +137,7 @@ export async function createFrameRenderer(
         trackSpeeds: sampler.trackSpeeds,
         trackCts: sampler.trackCts,
         speedBounds: sampler.speedBounds,
+        coloredTrackImage: coloredTrackImageByWidgetId.get(widget.id) ?? null,
         lapSpeedTraces,
         currentLapSpeedTrace,
         gForceReading,

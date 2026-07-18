@@ -44,6 +44,10 @@ export interface WidgetDrawContext {
   trackSpeeds?: number[]
   trackCts?: number[]
   speedBounds?: { min: number; max: number }
+  /** Only relevant for a 'gpsTrack' widget with colorMode 'speed'/'braking' -- see
+   *  buildColoredGpsTrackCache. Pre-rendered by the caller once and reused across frames instead of
+   *  re-stroking every track segment on every single frame. */
+  coloredTrackImage?: CanvasImageLike | null
   /** Only relevant for a 'speedDistanceGraph' widget -- completed-lap traces are shared/precomputed
    *  once (don't depend on cts); the current-lap trace is resolved fresh every frame. */
   lapSpeedTraces?: LapSpeedTrace[]
@@ -67,7 +71,8 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         dotPosition: data.dotPosition,
         trackSpeeds: data.trackSpeeds,
         trackCts: data.trackCts,
-        speedBounds: data.speedBounds
+        speedBounds: data.speedBounds,
+        coloredTrackImage: data.coloredTrackImage
       })
       return
     case 'speedometerAnalog':

@@ -8,6 +8,7 @@ import type { LapSpeedTrace } from '@shared/telemetry/speedTrace'
 import { detectApexEvents } from '@shared/telemetry/apex'
 import { buildManualCalibration, buildManualCalibrationForRoll } from '@shared/telemetry/imuCalibration'
 import { drawWidget } from '@shared/render/drawWidget'
+import { buildColoredGpsTrackCache } from '@shared/render/drawGpsWidget'
 import type { Canvas2DLike } from '@shared/render/canvas2d'
 import { speedSmoothingMsFor } from '@shared/widgets/helpers'
 import { useLoadedImage } from '../hooks/useLoadedImage'
@@ -54,6 +55,34 @@ function WidgetCanvas({
     () => (minDropMps !== null && minGapMs !== null ? detectApexEvents(sampler.samples, minDropMps, minGapMs) : []),
     [sampler, minDropMps, minGapMs]
   )
+
+  // colorMode 'speed'/'braking' segments never change frame-to-frame (only the dot does), so this
+  // is pre-rendered once into an offscreen canvas and reused every frame instead of re-stroking
+  // potentially tens of thousands of individual segments 60 times a second during playback -- see
+  // buildColoredGpsTrackCache's own doc comment. Recomputed only when style/size/track data actually
+  // change (dragging/resizing a DIFFERENT widget, or scrubbing the timeline, doesn't touch this).
+  const gpsColorStyle = widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid' ? widget.style : null
+  const coloredTrackImage = useMemo(() => {
+    if (!gpsColorStyle || pixelWidth <= 0 || pixelHeight <= 0) return null
+    const cacheCanvas = document.createElement('canvas')
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    cacheCanvas.width = Math.max(1, Math.round(pixelWidth * dpr))
+    cacheCanvas.height = Math.max(1, Math.round(pixelHeight * dpr))
+    const cacheCtx = cacheCanvas.getContext('2d')
+    if (!cacheCtx) return null
+    cacheCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    buildColoredGpsTrackCache(
+      cacheCtx as unknown as Canvas2DLike,
+      sampler.trackPoints,
+      sampler.bounds,
+      { x: 0, y: 0, w: pixelWidth, h: pixelHeight },
+      gpsColorStyle,
+      sampler.trackSpeeds,
+      sampler.trackCts,
+      sampler.speedBounds
+    )
+    return cacheCanvas
+  }, [gpsColorStyle, pixelWidth, pixelHeight, sampler])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -111,6 +140,7 @@ function WidgetCanvas({
       trackSpeeds: sampler.trackSpeeds,
       trackCts: sampler.trackCts,
       speedBounds: sampler.speedBounds,
+      coloredTrackImage,
       lapSpeedTraces,
       currentLapSpeedTrace,
       gForceReading,
@@ -130,6 +160,7 @@ function WidgetCanvas({
     apexEvents,
     headerImage,
     fastestLapIcon,
+    coloredTrackImage,
     lapSpeedTraces,
     currentLapSpeedTrace
   ])
