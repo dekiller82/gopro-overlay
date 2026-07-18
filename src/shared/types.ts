@@ -1,0 +1,189 @@
+export interface LatLon {
+  lat: number
+  lon: number
+}
+
+export interface TelemetrySample {
+  /** Milliseconds from the start of the video, aligned with HTMLVideoElement.currentTime * 1000 */
+  cts: number
+  lat: number
+  lon: number
+  /** Meters */
+  altitude: number
+  /** Meters per second */
+  speed2D: number
+  /** Meters per second */
+  speed3D: number
+}
+
+/** One raw IMU reading (accelerometer, gyroscope, or gravity vector) in the camera's own body-frame
+ *  axes -- NOT vehicle-relative. Which raw axis is "vertical"/"lateral"/"longitudinal" depends on the
+ *  camera model and mount, and is resolved separately (see shared/telemetry/imuCalibration.ts), not
+ *  baked into this type. */
+export interface ImuSample {
+  cts: number
+  x: number
+  y: number
+  z: number
+}
+
+export interface TelemetryData {
+  deviceName: string
+  gpsStream: 'GPS5' | 'GPS9'
+  samples: TelemetrySample[]
+  videoDurationMs: number
+  /** Accelerometer, m/s^2. Always an array (empty if not present/parsed) -- no null-checks needed downstream. */
+  accel: ImuSample[]
+  /** Gyroscope, rad/s. Same always-an-array convention as accel. */
+  gyro: ImuSample[]
+  /** Gravity-direction unit vector -- only present on newer cameras/firmware. Empty when not recorded. */
+  gravity: ImuSample[]
+}
+
+export interface VideoMeta {
+  path: string
+  fileName: string
+  durationMs: number
+  fps: number
+  width: number
+  height: number
+  /** ffprobe codec_name of the video stream, e.g. 'h264', 'hevc'. */
+  codec: string
+  /** ffprobe pix_fmt of the video stream, e.g. 'yuv420p', 'yuv420p10le'. */
+  pixFmt: string
+  /** Whether the file has an audio stream at all -- GoPro clips normally do, but export needs to
+   *  know before building an audio filter/map graph, and mixed audio/no-audio clips in one
+   *  sequence can't be combined cleanly. */
+  hasAudio: boolean
+}
+
+/** One clip in a multi-clip timeline. Clips are always contiguous (GoPro auto-splits one long
+ *  recording at ~4GB into parts like GH010230.MP4/GH020230.MP4) -- `startOffsetMs` is this clip's
+ *  position in the GLOBAL stitched timeline (cumulative sum of preceding clips' durations). */
+export interface ClipInfo {
+  video: VideoMeta
+  startOffsetMs: number
+}
+
+export interface ImportResult {
+  /** Ordered, contiguous, always at least 1. */
+  clips: ClipInfo[]
+  /** Stitched across all clips already -- global `cts`, `videoDurationMs` equal to the sum of
+   *  every clip's duration. Every telemetry/lap/sector/widget consumer just uses this directly,
+   *  with zero awareness of how many clips it came from. */
+  telemetry: TelemetryData
+}
+
+export interface WidgetTransform {
+  /** Fractions of frame size (0-1), resolution-independent so the same layout works at any export resolution. */
+  x: number
+  y: number
+  w: number
+  h: number
+  /** Degrees */
+  rotation: number
+  zIndex: number
+}
+
+export interface GpsTrackWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'gpsTrack'
+  style: import('./render/drawGpsWidget').GpsWidgetStyle
+}
+
+export interface SpeedometerAnalogWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'speedometerAnalog'
+  style: import('./render/drawSpeedometer').SpeedometerStyle
+}
+
+export interface SpeedometerDigitalWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'speedometerDigital'
+  style: import('./render/drawSpeedometer').SpeedometerStyle
+}
+
+export interface TimerWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'timer'
+  style: import('./render/drawTimer').TimerStyle
+}
+
+export interface SectorTimerWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'sectorTimer'
+  style: import('./render/drawSectorTimer').SectorTimerStyle
+}
+
+export interface DeltaTimeWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'deltaTime'
+  style: import('./render/drawDeltaTime').DeltaTimeStyle
+}
+
+export interface PredictiveLapTimerWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'predictiveLapTimer'
+  style: import('./render/drawPredictiveLapTimer').PredictiveLapTimerStyle
+}
+
+export interface ApexSpeedCalloutWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'apexSpeedCallout'
+  style: import('./render/drawApexSpeedCallout').ApexSpeedCalloutStyle
+}
+
+export interface SpeedDistanceGraphWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'speedDistanceGraph'
+  style: import('./render/drawSpeedDistanceGraph').SpeedDistanceGraphStyle
+}
+
+export interface GForceDiagramWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'gForceDiagram'
+  style: import('./render/drawGForceDiagram').GForceDiagramStyle
+}
+
+export interface RollAngleWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'rollAngle'
+  style: import('./render/drawRollAngle').RollAngleStyle
+}
+
+export type WidgetInstance =
+  | GpsTrackWidgetInstance
+  | SpeedometerAnalogWidgetInstance
+  | SpeedometerDigitalWidgetInstance
+  | TimerWidgetInstance
+  | SectorTimerWidgetInstance
+  | DeltaTimeWidgetInstance
+  | PredictiveLapTimerWidgetInstance
+  | ApexSpeedCalloutWidgetInstance
+  | SpeedDistanceGraphWidgetInstance
+  | GForceDiagramWidgetInstance
+  | RollAngleWidgetInstance
+
+export interface ProjectPayload {
+  imported: ImportResult
+  widgets: WidgetInstance[]
+  /** One start/finish line shared by every widget that needs lap/sector detection (timer in laps
+   *  mode, sectorTimer, and any future widget with the same need) -- set once, used everywhere,
+   *  instead of each widget needing its own copy. */
+  startFinish: LatLon | null
+  /** Whole-sequence trim (global ms, spanning all clips) -- cuts dead time from the very start of
+   *  the first clip and/or the very end of the last clip. Does NOT affect lap/sector detection
+   *  (physically tied to GPS crossings, independent of any later edit decision) -- only changes
+   *  what the plain elapsed-mode timer widget displays and what export actually renders. */
+  trimStartMs: number
+  trimEndMs: number
+}
+
+export interface ImportProgress {
+  phase: 'extracting' | 'parsing'
+  fraction: number
+  /** Which clip (0-indexed) this progress event is for, out of totalClips -- lets the UI show "Clip 2 of 3…". */
+  clipIndex: number
+  totalClips: number
+}
+

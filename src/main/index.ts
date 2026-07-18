@@ -1,0 +1,65 @@
+import { app, shell, BrowserWindow } from 'electron'
+import { join } from 'path'
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { registerIpcHandlers } from './ipc/handlers'
+import { clearPreviewCache } from './video/previewProxy'
+import { registerVideoProtocolPrivilege, registerVideoProtocolHandler } from './video/videoProtocol'
+
+// Stock Electron/Chromium HW-decode paths for HEVC exist from Electron 22+ but the platform
+// (OS-level, e.g. Windows Media Foundation) decoder isn't always active by default. Must be set
+// before app.whenReady(). Harmless no-op if the platform/GPU doesn't actually support it.
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport')
+
+registerVideoProtocolPrivilege()
+
+function createWindow(): void {
+  const mainWindow = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#0b0b0d',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
+  })
+
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+app.whenReady().then(() => {
+  electronApp.setAppUserModelId('com.gopro-overlay.app')
+
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window)
+  })
+
+  registerVideoProtocolHandler()
+  registerIpcHandlers()
+  clearPreviewCache()
+  createWindow()
+
+  app.on('activate', function () {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})

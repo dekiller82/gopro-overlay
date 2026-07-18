@@ -1,0 +1,611 @@
+/* Registered identically (same family-name strings) in the main process via GlobalFonts.registerFromPath
+   for @napi-rs/canvas during export -- the alias must match exactly or preview/export fonts diverge. */
+@font-face {
+  font-family: 'Formula1 Regular';
+  src: url('../fonts/Formula1-Regular.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'Formula1 Bold';
+  src: url('../fonts/Formula1-Bold.otf') format('opentype');
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0d;
+  --bg-panel: #16161a;
+  --border: #26262c;
+  --text: #e8e8ea;
+  --text-dim: #8a8a92;
+  --accent: #ff3b30;
+  --font: -apple-system, 'Segoe UI', Inter, Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+}
+
+.import-button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.import-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.app-shell__error {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.debug-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 12px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 640px;
+}
+
+.debug-panel__sample {
+  color: var(--text);
+}
+
+.app-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.app-shell__brand--compact {
+  font-size: 14px;
+}
+
+.import-button--ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.app-shell__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar__saved-hint {
+  font-size: 11px;
+  color: #34c759;
+}
+
+.toolbar__error {
+  padding: 6px 16px 0;
+  font-size: 12px;
+}
+
+.export-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.export-banner__bar {
+  width: 160px;
+  height: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.export-banner__fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.export-banner--done {
+  color: #34c759;
+}
+
+.export-banner--error {
+  color: var(--accent);
+}
+
+.export-banner__dismiss {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.editor__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 16px;
+  gap: 12px;
+}
+
+.video-stage {
+  flex: 1;
+  min-height: 0;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.video-stage__video {
+  object-fit: contain;
+}
+
+.video-stage__overlay {
+  pointer-events: none;
+}
+
+.video-stage__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: var(--text-dim);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.video-stage__status--error {
+  color: var(--accent);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.video-stage__status--warning {
+  color: #ffcc00;
+  background: rgba(0, 0, 0, 0.6);
+  align-items: flex-start;
+  padding-top: 12px;
+}
+
+.crash-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.crash-screen__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.crash-screen__message {
+  color: var(--text-dim);
+  font-size: 13px;
+  max-width: 480px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.crash-inline {
+  padding: 10px 14px;
+  color: var(--accent);
+  font-size: 12px;
+  background: rgba(255, 59, 48, 0.08);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.timeline__play,
+.timeline__step {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.timeline__step {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.timeline__time {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text);
+  min-width: 62px;
+}
+
+.timeline__time--dim {
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.timeline__track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+}
+
+.timeline__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.timeline__handle {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.timeline__clip-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+.timeline__trim-mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.timeline__trim-mask--start {
+  left: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+.timeline__trim-mask--end {
+  right: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+.timeline__trim-handle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.timeline__trim-handle--start {
+  transform: translateX(-100%);
+}
+
+.timeline__trim-handle--end {
+  transform: translateX(0);
+}
+
+.editor__meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.widget-layer {
+  pointer-events: auto;
+  /* Widgets can now be dragged/resized beyond the frame's own edges (e.g. an oversized GPS map
+     tucked into a corner) -- this clips the live preview to the exact video frame bounds, matching
+     export's own natural Canvas2D clipping, so nothing renders outside the visible frame. */
+  overflow: hidden;
+}
+
+.alignment-guide {
+  position: absolute;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 0 4px var(--accent);
+}
+
+.alignment-guide--vertical {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.alignment-guide--horizontal {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.widget-box {
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.widget-box--selected {
+  border-color: var(--accent);
+}
+
+.widget-box__inner {
+  width: 100%;
+  height: 100%;
+}
+
+.widget-box__canvas {
+  display: block;
+}
+
+.property-panel {
+  width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-panel);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.property-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.property-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.property-panel__add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.property-panel__add,
+.property-panel__delete {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.property-panel__delete {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.widget-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.widget-list__item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.widget-list__item:hover {
+  border-color: var(--border);
+}
+
+.widget-list__item--active {
+  background: rgba(255, 59, 48, 0.12);
+  border-color: var(--accent);
+}
+
+.widget-list__empty {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.field input[type='range'] {
+  width: 100%;
+}
+
+.field input[type='color'] {
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.field--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.field__hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.8;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.preset-swatch:hover {
+  border-color: var(--text);
+}
+
+.field select,
+.field input[type='number'],
+.field input[type='text'] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.app-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-shell__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.app-shell__hint {
+  color: var(--text-dim);
+  font-size: 13px;
+}

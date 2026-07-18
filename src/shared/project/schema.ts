@@ -1,0 +1,377 @@
+import { z } from 'zod'
+
+const transformFields = {
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  rotation: z.number(),
+  zIndex: z.number()
+}
+
+const gpsStyleSchema = z.object({
+  lineColor: z.string(),
+  lineWidth: z.number(),
+  lineOpacity: z.number(),
+  dotColor: z.string(),
+  dotRadius: z.number(),
+  dotGlow: z.boolean(),
+  // .default(...) on every field added here after v2 shipped -- an already-saved project file
+  // missing these still parses (as 'solid', today's exact behavior) instead of failing outright.
+  colorMode: z.enum(['solid', 'speed', 'braking']).default('solid'),
+  slowColor: z.string().default('#2979ff'),
+  fastColor: z.string().default('#ff3b30'),
+  brakingColor: z.string().default('#ff3b30'),
+  acceleratingColor: z.string().default('#3ddc71'),
+  neutralColor: z.string().default('#ffffff'),
+  brakingThresholdMps2: z.number().default(1.5)
+})
+
+const speedometerStyleSchema = z.object({
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  smoothingMs: z.number(),
+  min: z.number(),
+  max: z.number(),
+  color: z.string(),
+  accentColor: z.string(),
+  showUnit: z.boolean(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string()
+})
+
+const latLonSchema = z.object({
+  lat: z.number(),
+  lon: z.number()
+})
+
+const timerStyleSchema = z.object({
+  color: z.string(),
+  showCentiseconds: z.boolean(),
+  label: z.string(),
+  labelColor: z.string(),
+  mode: z.enum(['elapsed', 'laps']),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  headerImageDataUrl: z.string().nullable(),
+  headerImageScale: z.number(),
+  headerText: z.string(),
+  headerTextColor: z.string(),
+  rowOrder: z.enum(['ranked', 'chronological']),
+  chronoDirection: z.enum(['newestOnTop', 'newestOnBottom']),
+  maxVisibleRows: z.number(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number()
+})
+
+const sectorTimerStyleSchema = z.object({
+  color: z.string(),
+  labelColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  showLastLapRow: z.boolean()
+})
+
+const deltaTimeStyleSchema = z.object({
+  neutralColor: z.string(),
+  fasterColor: z.string(),
+  slowerColor: z.string(),
+  label: z.string(),
+  labelColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number()
+})
+
+const predictiveLapTimerStyleSchema = z.object({
+  color: z.string(),
+  label: z.string(),
+  labelColor: z.string(),
+  showDelta: z.boolean(),
+  fasterColor: z.string(),
+  slowerColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number()
+})
+
+const apexSpeedCalloutStyleSchema = z.object({
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  color: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  flashDurationMs: z.number(),
+  minDropMps: z.number(),
+  minGapMs: z.number(),
+  label: z.string()
+})
+
+const speedDistanceGraphStyleSchema = z.object({
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  gridColor: z.string(),
+  gridOpacity: z.number(),
+  axisLabelColor: z.string(),
+  lineWidth: z.number(),
+  maxLapsShown: z.number(),
+  showCurrentLap: z.boolean(),
+  highlightCurrentLap: z.boolean(),
+  colorSeed: z.number(),
+  // .default(...) -- added after this widget type shipped, so an already-saved project's widget
+  // (missing these) still parses instead of failing outright, same discipline as the GPS Track
+  // widget's colorMode addition.
+  viewMode: z.enum(['fullLap', 'window']).default('fullLap'),
+  windowMeters: z.number().default(50),
+  referenceLapColor: z.string().default('#9a9a9a'),
+  referenceLapOpacity: z.number().default(0.55)
+})
+
+const gpsTrackWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('gpsTrack'),
+  ...transformFields,
+  style: gpsStyleSchema
+})
+
+const speedometerAnalogWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('speedometerAnalog'),
+  ...transformFields,
+  style: speedometerStyleSchema
+})
+
+const speedometerDigitalWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('speedometerDigital'),
+  ...transformFields,
+  style: speedometerStyleSchema
+})
+
+const timerWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('timer'),
+  ...transformFields,
+  style: timerStyleSchema
+})
+
+const sectorTimerWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('sectorTimer'),
+  ...transformFields,
+  style: sectorTimerStyleSchema
+})
+
+const deltaTimeWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('deltaTime'),
+  ...transformFields,
+  style: deltaTimeStyleSchema
+})
+
+const predictiveLapTimerWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('predictiveLapTimer'),
+  ...transformFields,
+  style: predictiveLapTimerStyleSchema
+})
+
+const apexSpeedCalloutWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('apexSpeedCallout'),
+  ...transformFields,
+  style: apexSpeedCalloutStyleSchema
+})
+
+const speedDistanceGraphWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('speedDistanceGraph'),
+  ...transformFields,
+  style: speedDistanceGraphStyleSchema
+})
+
+const gForceDiagramStyleSchema = z.object({
+  maxG: z.number(),
+  ringColor: z.string(),
+  ringOpacity: z.number(),
+  axisLabelColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  dotColor: z.string(),
+  dotRadius: z.number(),
+  trailColor: z.string(),
+  trailDurationMs: z.number(),
+  smoothingMs: z.number(),
+  useManualAxes: z.boolean(),
+  verticalAxis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  longitudinalAxis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  verticalInverted: z.boolean(),
+  longitudinalInverted: z.boolean(),
+  lateralInverted: z.boolean()
+})
+
+const rollAngleStyleSchema = z.object({
+  color: z.string(),
+  label: z.string(),
+  labelColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  smoothingMs: z.number(),
+  maxAngleScale: z.number(),
+  barColor: z.string(),
+  showAccuracyCaveat: z.boolean(),
+  useManualAxes: z.boolean(),
+  verticalAxis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  lateralAxis: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  verticalInverted: z.boolean(),
+  lateralInverted: z.boolean()
+})
+
+const gForceDiagramWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('gForceDiagram'),
+  ...transformFields,
+  style: gForceDiagramStyleSchema
+})
+
+const rollAngleWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('rollAngle'),
+  ...transformFields,
+  style: rollAngleStyleSchema
+})
+
+export const widgetSchema = z.discriminatedUnion('type', [
+  gpsTrackWidgetSchema,
+  speedometerAnalogWidgetSchema,
+  speedometerDigitalWidgetSchema,
+  timerWidgetSchema,
+  sectorTimerWidgetSchema,
+  deltaTimeWidgetSchema,
+  predictiveLapTimerWidgetSchema,
+  apexSpeedCalloutWidgetSchema,
+  speedDistanceGraphWidgetSchema,
+  gForceDiagramWidgetSchema,
+  rollAngleWidgetSchema
+])
+
+export const videoMetaSchema = z.object({
+  path: z.string(),
+  fileName: z.string(),
+  durationMs: z.number(),
+  fps: z.number(),
+  width: z.number(),
+  height: z.number(),
+  codec: z.string(),
+  pixFmt: z.string(),
+  hasAudio: z.boolean()
+})
+
+export const clipInfoSchema = z.object({
+  video: videoMetaSchema,
+  startOffsetMs: z.number()
+})
+
+export const telemetrySampleSchema = z.object({
+  cts: z.number(),
+  lat: z.number(),
+  lon: z.number(),
+  altitude: z.number(),
+  speed2D: z.number(),
+  speed3D: z.number()
+})
+
+export const imuSampleSchema = z.object({
+  cts: z.number(),
+  x: z.number(),
+  y: z.number(),
+  z: z.number()
+})
+
+export const telemetryDataSchema = z.object({
+  deviceName: z.string(),
+  gpsStream: z.enum(['GPS5', 'GPS9']),
+  samples: z.array(telemetrySampleSchema),
+  videoDurationMs: z.number(),
+  // .default([]) -- added after the telemetry cache format shipped, so an already-cached telemetry
+  // JSON file (written before this change, with no IMU data at all) still parses.
+  accel: z.array(imuSampleSchema).default([]),
+  gyro: z.array(imuSampleSchema).default([]),
+  gravity: z.array(imuSampleSchema).default([])
+})
+
+export const projectFileSchema = z.object({
+  version: z.literal(2),
+  id: z.string(),
+  /** Ordered, contiguous clips making up the timeline (see shared/types.ts ClipInfo). */
+  clips: z.array(clipInfoSchema),
+  /** Filename of the sibling telemetry cache JSON, relative to the project file's own directory. */
+  telemetryCacheFile: z.string(),
+  widgets: z.array(widgetSchema),
+  /** One start/finish line shared by every widget that needs lap/sector detection. */
+  startFinish: latLonSchema.nullable(),
+  /** Whole-sequence trim, global ms spanning all clips. */
+  trimStartMs: z.number(),
+  trimEndMs: z.number()
+})
+
+export type ProjectFile = z.infer<typeof projectFileSchema>
+export type TelemetryDataFile = z.infer<typeof telemetryDataSchema>
+
+// --- v1 (single-clip) project files, kept only so old projects still open. ---
+// v1 predates the `hasAudio` field on VideoMeta entirely, so its own video schema doesn't require it.
+const videoMetaSchemaV1 = z.object({
+  path: z.string(),
+  fileName: z.string(),
+  durationMs: z.number(),
+  fps: z.number(),
+  width: z.number(),
+  height: z.number(),
+  codec: z.string(),
+  pixFmt: z.string()
+})
+
+const projectFileSchemaV1 = z.object({
+  version: z.literal(1),
+  id: z.string(),
+  sourceVideo: videoMetaSchemaV1,
+  telemetryCacheFile: z.string(),
+  widgets: z.array(widgetSchema),
+  startFinish: latLonSchema.nullable()
+})
+
+/**
+ * Parses a project file, migrating a v1 (single-clip) file into the current v2 (multi-clip) shape
+ * on the fly rather than failing with a generic zod error -- an old project should keep opening,
+ * just as a single-clip timeline with no trim. `hasAudio` isn't knowable from a v1 file without
+ * re-probing the source (out of scope for a migration step); it's assumed `true` since that's the
+ * overwhelmingly common case and the only consequence of a wrong guess is a slightly different
+ * export audio-handling path, not a crash.
+ */
+export function parseProjectFile(raw: unknown): ProjectFile {
+  const v2 = projectFileSchema.safeParse(raw)
+  if (v2.success) return v2.data
+
+  const v1 = projectFileSchemaV1.safeParse(raw)
+  if (v1.success) {
+    const { sourceVideo, ...rest } = v1.data
+    return {
+      ...rest,
+      version: 2,
+      clips: [{ video: { ...sourceVideo, hasAudio: true }, startOffsetMs: 0 }],
+      trimStartMs: 0,
+      trimEndMs: sourceVideo.durationMs
+    }
+  }
+
+  // Neither shape matched -- surface the v2 error (the current, primary schema) since that's the
+  // most actionable message for a genuinely corrupted/unrecognized file.
+  throw v2.error
+}
