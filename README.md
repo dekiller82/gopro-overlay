@@ -1,7 +1,7 @@
 # GoPro Overlay
 
 A desktop editor for burning GoPro telemetry (GPS, speed, lean angle, G-forces, lap/sector
-timing…) directly into your video as a rendered overlay — no cloud upload, no subscription. Import
+timing…) directly into your video as a rendered overlay. No cloud upload, no subscription!! Import
 one or more GoPro clips, drag widgets onto the frame, and export a finished MP4 with everything
 baked in.
 
