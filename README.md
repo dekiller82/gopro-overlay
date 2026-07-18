@@ -9,9 +9,7 @@ Built with Electron, React, and TypeScript. Runs on Windows, macOS, and Linux.
 
 ## Demo
 
-**[▶ Watch the demo video](https://youtu.be/YtDYg4stG4M)** 
 [![GoPro Overlay demo video](https://img.youtube.com/vi/YtDYg4stG4M/maxresdefault.jpg)](https://youtu.be/YtDYg4stG4M)
-**[▶ Watch the demo video](https://youtu.be/YtDYg4stG4M)** 
 
 Shows the GPS track, sector timer, timing tower, delta time, apex speed callout, and digital
 speedometer widgets running together over real footage.
@@ -187,6 +185,15 @@ renderer use identically.
   tilt signal. The widget flags when it's using this fallback.
 - **Widget alignment** (snapping/centering) is relative to the video frame only, not to other
   widgets.
+- **Importing directly from an SD card (especially over a USB card reader) is noticeably slower
+  than importing from a local drive, and is more likely to fall back to generating a preview proxy
+  even for an otherwise-supported codec.** GoPro's in-camera MP4s store their index (the `moov` atom)
+  at the *end* of the file rather than the front, so the very first thing playback needs is a large
+  seek to near the end of a multi-gigabyte file, then back to the start. Random-access reads that far
+  apart are much slower on SD cards than on an SSD, and if that seek is slow enough, Chromium's
+  `<video>` element reports it the same way it would report a genuinely unsupported codec — the app
+  can't currently tell the two apart. **Recommendation:** copy clips to a local drive before
+  importing if you hit this.
 
 ## License
 
