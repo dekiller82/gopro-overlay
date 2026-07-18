@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Editor from './components/Editor'
 import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
-import type { ImportProgress, ProjectPayload } from '@shared/types'
+import type { ImportProgress, ProjectPayload, RecentProject } from '@shared/types'
 
 const IMPORT_PHASE_LABELS: Record<ImportProgress['phase'], string> = {
   extracting: 'Reading video file',
@@ -51,6 +51,15 @@ function App(): React.JSX.Element {
   >({ phase: 'idle' })
   const [exportEncoderLabel, setExportEncoderLabel] = useState<string | null>(null)
   const [autosaveAvailable, setAutosaveAvailable] = useState(false)
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
+
+  const refreshRecentProjects = (): void => {
+    window.api.listRecentProjects().then(setRecentProjects)
+  }
+
+  useEffect(() => {
+    refreshRecentProjects()
+  }, [])
 
   useEffect(() => {
     return window.api.onExportProgress(({ done, total }) => {
@@ -158,10 +167,30 @@ function App(): React.JSX.Element {
       setStartFinish(project.startFinish)
       setTrim(project.trimStartMs, project.trimEndMs)
       setStatus('idle')
+      refreshRecentProjects()
     } catch (err) {
       console.error('[project] load failed:', err)
       setError(err instanceof Error ? err.message : String(err))
       setStatus('error')
+    }
+  }
+
+  async function handleOpenRecentProject(projectPath: string): Promise<void> {
+    setError(null)
+    setSavedPath(null)
+    setStatus('loading')
+    try {
+      const project = await window.api.loadProjectFromPath(projectPath)
+      setImported(project.imported)
+      loadWidgets(project.widgets)
+      setStartFinish(project.startFinish)
+      setTrim(project.trimStartMs, project.trimEndMs)
+      setStatus('idle')
+    } catch (err) {
+      console.error('[project] recent-project load failed:', err)
+      setError(err instanceof Error ? err.message : String(err))
+      setStatus('error')
+      refreshRecentProjects() // the stale entry was dropped on the main side -- reflect that here too
     }
   }
 
@@ -198,7 +227,10 @@ function App(): React.JSX.Element {
     setError(null)
     try {
       const path = await window.api.saveProject({ imported, widgets, startFinish, trimStartMs, trimEndMs })
-      if (path) setSavedPath(path)
+      if (path) {
+        setSavedPath(path)
+        refreshRecentProjects()
+      }
     } catch (err) {
       console.error('[project] save failed:', err)
       setError(err instanceof Error ? err.message : String(err))
@@ -350,6 +382,26 @@ function App(): React.JSX.Element {
       {status === 'error' && <p className="app-shell__error">{error}</p>}
       {status !== 'loading' && status !== 'error' && (
         <p className="app-shell__hint">Import one or more GoPro clips (select all parts of a split recording at once) or open a saved project to get started.</p>
+      )}
+
+      {recentProjects.length > 0 && (
+        <div className="recent-projects">
+          <div className="recent-projects__header">Recent Projects</div>
+          <ul className="recent-projects__list">
+            {recentProjects.map((p) => (
+              <li key={p.path} className="recent-projects__item">
+                <button
+                  className="recent-projects__open"
+                  onClick={() => handleOpenRecentProject(p.path)}
+                  disabled={status === 'loading'}
+                  title={p.path}
+                >
+                  {p.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   )

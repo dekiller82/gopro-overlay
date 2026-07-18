@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset } from '../shared/types'
+import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../shared/types'
 
 interface ExportProgress {
   done: number
@@ -13,6 +13,8 @@ interface Api {
   ensurePreviewProxy: (video: VideoMeta) => Promise<string>
   saveProject: (payload: ProjectPayload) => Promise<string | null>
   loadProject: () => Promise<ProjectPayload | null>
+  loadProjectFromPath: (projectPath: string) => Promise<ProjectPayload>
+  listRecentProjects: () => Promise<RecentProject[]>
   exportVideo: (payload: ProjectPayload) => Promise<string | null>
   listLayoutPresets: () => Promise<WidgetLayoutPreset[]>
   saveLayoutPreset: (name: string, widgets: WidgetInstance[]) => Promise<WidgetLayoutPreset[]>

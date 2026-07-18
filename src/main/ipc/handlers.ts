@@ -4,9 +4,10 @@ import { probeAndParseClip, buildImportResult, sliceClipTelemetry, type ProbedCl
 import { loadProjectFromFile, saveProjectToFile } from '../project/persistence'
 import { listLayoutPresets, saveLayoutPreset, deleteLayoutPreset, defaultLayoutPresetsFilePath } from '../project/layoutPresets'
 import { autosaveProjectPath, hasAutosave, clearAutosave } from '../project/autosave'
+import { listRecentProjects, addRecentProject, removeRecentProject, defaultRecentProjectsFilePath } from '../project/recentProjects'
 import { runExport } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
-import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset } from '../../shared/types'
+import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../../shared/types'
 
 const PROJECT_FILTERS = [{ name: 'GoPro Overlay Project', extensions: ['gpo'] }]
 const VIDEO_FILTERS = [{ name: 'GoPro video', extensions: ['mp4', 'mov', 'MP4', 'MOV'] }]
@@ -74,6 +75,7 @@ export function registerIpcHandlers(): void {
 
     if (result.canceled || !result.filePath) return null
     await saveProjectToFile(result.filePath, payload)
+    await addRecentProject(defaultRecentProjectsFilePath(), result.filePath)
     return result.filePath
   })
 
@@ -84,8 +86,27 @@ export function registerIpcHandlers(): void {
       : await dialog.showOpenDialog({ properties: ['openFile'], filters: PROJECT_FILTERS })
 
     if (result.canceled || result.filePaths.length === 0) return null
-    return loadProjectFromFile(result.filePaths[0])
+    const payload = await loadProjectFromFile(result.filePaths[0])
+    await addRecentProject(defaultRecentProjectsFilePath(), result.filePaths[0])
+    return payload
   })
+
+  // Opens a specific, already-known project path directly (no file picker) -- used by the Recent
+  // Projects list on the start screen.
+  ipcMain.handle('project:load-path', async (_event, projectPath: string): Promise<ProjectPayload> => {
+    try {
+      const payload = await loadProjectFromFile(projectPath)
+      await addRecentProject(defaultRecentProjectsFilePath(), projectPath)
+      return payload
+    } catch (err) {
+      // The file was likely moved/deleted since it was listed -- drop it so it doesn't keep
+      // failing every time it's clicked, then let the real error surface to the UI.
+      await removeRecentProject(defaultRecentProjectsFilePath(), projectPath)
+      throw err
+    }
+  })
+
+  ipcMain.handle('recent:list', async (): Promise<RecentProject[]> => listRecentProjects(defaultRecentProjectsFilePath()))
 
   ipcMain.handle('export:start', async (event, payload: ProjectPayload): Promise<string | null> => {
     const win = BrowserWindow.getFocusedWindow()

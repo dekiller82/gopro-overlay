@@ -624,3 +624,51 @@ body {
   color: var(--text-dim);
   font-size: 13px;
 }
+
+.recent-projects {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 8px;
+}
+
+.recent-projects__header {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.recent-projects__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recent-projects__open {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-projects__open:hover {
+  border-color: var(--accent);
+}
+
+.recent-projects__open:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

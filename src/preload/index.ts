@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset } from '../shared/types'
+import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../shared/types'
 
 export interface ExportProgress {
   done: number
@@ -15,6 +15,8 @@ const api = {
   ensurePreviewProxy: (video: VideoMeta): Promise<string> => ipcRenderer.invoke('video:ensure-preview-proxy', video),
   saveProject: (payload: ProjectPayload): Promise<string | null> => ipcRenderer.invoke('project:save', payload),
   loadProject: (): Promise<ProjectPayload | null> => ipcRenderer.invoke('project:load'),
+  loadProjectFromPath: (projectPath: string): Promise<ProjectPayload> => ipcRenderer.invoke('project:load-path', projectPath),
+  listRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke('recent:list'),
   exportVideo: (payload: ProjectPayload): Promise<string | null> => ipcRenderer.invoke('export:start', payload),
   listLayoutPresets: (): Promise<WidgetLayoutPreset[]> => ipcRenderer.invoke('layouts:list'),
   saveLayoutPreset: (name: string, widgets: WidgetInstance[]): Promise<WidgetLayoutPreset[]> =>
