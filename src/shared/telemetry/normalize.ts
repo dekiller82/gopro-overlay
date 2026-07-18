@@ -32,6 +32,11 @@ export function normalizeGpsTelemetry(raw: RawGoProTelemetry, videoDurationMs: n
     const rawSamples = streams[gpsStream]?.samples ?? []
     const samples: TelemetrySample[] = rawSamples
       .filter((s) => Array.isArray(s.value) && s.value.length >= 5)
+      // (0, 0) is GoPro's own convention for "no fix yet" (confirmed against a real clip that
+      // never acquired a GPS lock -- every one of its samples came back exactly (0, 0), not just
+      // near it). Null Island isn't a real recording location, so keeping these in would silently
+      // collapse the whole track to a single degenerate point instead of surfacing a clear error.
+      .filter((s) => s.value[0] !== 0 || s.value[1] !== 0)
       .map((s) => ({
         cts: s.cts,
         lat: s.value[0],
@@ -51,7 +56,9 @@ export function normalizeGpsTelemetry(raw: RawGoProTelemetry, videoDurationMs: n
     }
   }
 
-  throw new Error('No GPS telemetry (GPS5/GPS9) found in this file')
+  throw new Error(
+    'No usable GPS telemetry found in this clip. Make sure GPS was enabled and had a signal lock while recording (indoor tracks or covered areas often have no GPS signal).'
+  )
 }
 
 export interface ImuTelemetryResult {
