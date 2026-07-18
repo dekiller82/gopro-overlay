@@ -15,7 +15,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            script: dist:win
+          - os: macos-latest
+            script: dist:mac
+          - os: ubuntu-latest
+            script: dist:linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -33,16 +39,16 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build app
-        run: npm run build
-
-      - name: Package and publish (tag pushes only)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+      # electron-builder packages only here -- it does NOT publish. Publishing is deliberately not
+      # done per-OS: running `--publish` concurrently across the matrix means each platform's
+      # electron-builder process independently races to create/manage the same GitHub Release,
+      # and whichever finishes first "locks" it -- every other platform's upload then gets silently
+      # skipped with "existing type not compatible with publishing type". Building artifacts here and
+      # publishing them all in one place (the `publish` job below) avoids that race entirely.
+      - name: Package
+        run: npm run ${{ matrix.script }}
 
       - name: Upload build artifacts
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: gopro-overlay-${{ matrix.os }}
@@ -53,3 +59,29 @@ jobs:
             release/*.AppImage
             release/*.deb
           if-no-files-found: ignore
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p out
+          find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -exec cp {} out/ \;
+          ls -la out
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" out/* \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
