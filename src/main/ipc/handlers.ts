@@ -2,9 +2,11 @@ import { ipcMain, dialog, BrowserWindow, type OpenDialogOptions } from 'electron
 import { ensurePreviewProxy } from '../video/previewProxy'
 import { probeAndParseClip, buildImportResult, sliceClipTelemetry, type ProbedClip } from '../video/clipImport'
 import { loadProjectFromFile, saveProjectToFile } from '../project/persistence'
+import { listLayoutPresets, saveLayoutPreset, deleteLayoutPreset, defaultLayoutPresetsFilePath } from '../project/layoutPresets'
+import { autosaveProjectPath, hasAutosave, clearAutosave } from '../project/autosave'
 import { runExport } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
-import type { ImportResult, ProjectPayload, VideoMeta } from '../../shared/types'
+import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset } from '../../shared/types'
 
 const PROJECT_FILTERS = [{ name: 'GoPro Overlay Project', extensions: ['gpo'] }]
 const VIDEO_FILTERS = [{ name: 'GoPro video', extensions: ['mp4', 'mov', 'MP4', 'MOV'] }]
@@ -116,4 +118,27 @@ export function registerIpcHandlers(): void {
 
     return result.filePath
   })
+
+  ipcMain.handle('layouts:list', async (): Promise<WidgetLayoutPreset[]> => listLayoutPresets(defaultLayoutPresetsFilePath()))
+
+  ipcMain.handle('layouts:save', async (_event, name: string, widgets: WidgetInstance[]): Promise<WidgetLayoutPreset[]> =>
+    saveLayoutPreset(defaultLayoutPresetsFilePath(), name, widgets)
+  )
+
+  ipcMain.handle('layouts:delete', async (_event, id: string): Promise<WidgetLayoutPreset[]> =>
+    deleteLayoutPreset(defaultLayoutPresetsFilePath(), id)
+  )
+
+  ipcMain.handle('autosave:has', async (): Promise<boolean> => hasAutosave(autosaveProjectPath()))
+
+  ipcMain.handle('autosave:save', async (_event, payload: ProjectPayload): Promise<void> => {
+    await saveProjectToFile(autosaveProjectPath(), payload)
+  })
+
+  ipcMain.handle('autosave:load', async (): Promise<ProjectPayload | null> => {
+    const projectPath = autosaveProjectPath()
+    return hasAutosave(projectPath) ? loadProjectFromFile(projectPath) : null
+  })
+
+  ipcMain.handle('autosave:clear', async (): Promise<void> => clearAutosave(autosaveProjectPath()))
 }

@@ -1,12 +1,15 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import VideoPlayer, { type PlayerApi } from './VideoPlayer'
 import WidgetLayer from './WidgetLayer'
 import Timeline from './Timeline'
 import PropertyPanel from './PropertyPanel'
 import ErrorBoundary from './ErrorBoundary'
 import { useProjectStore } from '../store/projectStore'
+import { useWidgetStore } from '../store/widgetStore'
 import { useContainedRect } from '../hooks/useContainedRect'
 import { useTelemetrySampler } from '../hooks/useTelemetrySampler'
+
+const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
 function Editor(): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -18,6 +21,26 @@ function Editor(): React.JSX.Element {
   const imported = useProjectStore((s) => s.imported)
   const currentTimeMs = useProjectStore((s) => s.currentTimeMs)
   const sampler = useTelemetrySampler(imported)
+  const undo = useWidgetStore((s) => s.undo)
+  const redo = useWidgetStore((s) => s.redo)
+
+  // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (or +Y) for widget-edit undo/redo -- skipped while a text/select
+  // input has focus so it doesn't fight a property panel text field's own native undo.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const key = e.key.toLowerCase()
+      if (!(e.ctrlKey || e.metaKey) || (key !== 'z' && key !== 'y')) return
+      const target = e.target as HTMLElement | null
+      if (target && EDITABLE_TAGS.has(target.tagName)) return
+
+      e.preventDefault()
+      if (key === 'y') redo()
+      else if (e.shiftKey) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [undo, redo])
 
   const referenceVideo = imported?.clips[0]?.video
   const aspectRatio = referenceVideo ? referenceVideo.width / referenceVideo.height : 16 / 9

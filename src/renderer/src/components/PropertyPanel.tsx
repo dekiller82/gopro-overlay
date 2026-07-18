@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import type { SpeedUnit } from '@shared/units'
-import type { WidgetInstance } from '@shared/types'
+import type { WidgetInstance, WidgetLayoutPreset } from '@shared/types'
 import { GPS_STYLE_PRESETS, SPEEDOMETER_STYLE_PRESETS, TIMER_STYLE_PRESETS, type StylePreset } from '@shared/widgets/presets'
 import { DEFAULT_GPS_STYLE, type GpsWidgetStyle } from '@shared/render/drawGpsWidget'
 import { DEFAULT_SPEEDOMETER_STYLE } from '@shared/render/drawSpeedometer'
@@ -142,6 +143,7 @@ function PropertyPanel(): React.JSX.Element {
   const updateWidget = useWidgetStore((s) => s.updateWidget)
   const removeWidget = useWidgetStore((s) => s.removeWidget)
   const addWidget = useWidgetStore((s) => s.addWidget)
+  const applyWidgets = useWidgetStore((s) => s.applyWidgets)
   const imported = useProjectStore((s) => s.imported)
   const currentTimeMs = useProjectStore((s) => s.currentTimeMs)
   const startFinish = useProjectStore((s) => s.startFinish)
@@ -152,6 +154,25 @@ function PropertyPanel(): React.JSX.Element {
   const setSnapEnabled = useAlignmentStore((s) => s.setSnapEnabled)
 
   const selected = widgets.find((w) => w.id === selectedId) ?? null
+
+  const [layoutPresets, setLayoutPresets] = useState<WidgetLayoutPreset[]>([])
+  useEffect(() => {
+    window.api.listLayoutPresets().then(setLayoutPresets)
+  }, [])
+
+  function saveCurrentLayout(): void {
+    const name = window.prompt('Name this layout:')
+    if (!name) return
+    window.api.saveLayoutPreset(name, widgets).then(setLayoutPresets)
+  }
+
+  function applyLayout(preset: WidgetLayoutPreset): void {
+    applyWidgets(preset.widgets)
+  }
+
+  function deleteLayout(id: string): void {
+    window.api.deleteLayoutPreset(id).then(setLayoutPresets)
+  }
 
   function alignHorizontal(align: HorizontalAlign): void {
     if (!selected) return
@@ -252,6 +273,34 @@ function PropertyPanel(): React.JSX.Element {
               onClick={() => selectWidget(w.id)}
             >
               {widgetLabel(w.type)}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="property-panel__section">
+        <div className="property-panel__header">
+          <span>Layouts</span>
+        </div>
+        <div className="property-panel__add-row">
+          <button className="property-panel__add" onClick={saveCurrentLayout} disabled={widgets.length === 0}>
+            Save current layout…
+          </button>
+        </div>
+        <ul className="widget-list">
+          {layoutPresets.length === 0 && <li className="widget-list__empty">No saved layouts yet</li>}
+          {layoutPresets.map((preset) => (
+            <li key={preset.id} className="widget-list__item layout-preset-row">
+              <span className="layout-preset-row__name" onClick={() => applyLayout(preset)} title="Apply this layout">
+                {preset.name}
+              </span>
+              <button
+                className="property-panel__delete"
+                onClick={() => deleteLayout(preset.id)}
+                title="Delete this saved layout"
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>

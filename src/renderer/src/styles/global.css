@@ -526,6 +526,21 @@ body {
   padding: 4px 2px;
 }
 
+.layout-preset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.layout-preset-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .field {
   display: flex;
   flex-direction: column;

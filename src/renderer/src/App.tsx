@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Editor from './components/Editor'
 import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
-import type { ImportProgress } from '@shared/types'
+import type { ImportProgress, ProjectPayload } from '@shared/types'
 
 const IMPORT_PHASE_LABELS: Record<ImportProgress['phase'], string> = {
   extracting: 'Reading video file',
@@ -38,6 +38,10 @@ function App(): React.JSX.Element {
   const widgets = useWidgetStore((s) => s.widgets)
   const loadWidgets = useWidgetStore((s) => s.loadWidgets)
   const resetWidgets = useWidgetStore((s) => s.reset)
+  const undo = useWidgetStore((s) => s.undo)
+  const redo = useWidgetStore((s) => s.redo)
+  const canUndo = useWidgetStore((s) => s.canUndo)
+  const canRedo = useWidgetStore((s) => s.canRedo)
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [savedPath, setSavedPath] = useState<string | null>(null)
@@ -46,11 +50,43 @@ function App(): React.JSX.Element {
     { phase: 'idle' } | { phase: 'exporting'; done: number; total: number } | { phase: 'done'; path: string } | { phase: 'error'; message: string }
   >({ phase: 'idle' })
   const [exportEncoderLabel, setExportEncoderLabel] = useState<string | null>(null)
+  const [autosaveAvailable, setAutosaveAvailable] = useState(false)
 
   useEffect(() => {
     return window.api.onExportProgress(({ done, total }) => {
       setExportState({ phase: 'exporting', done, total })
     })
+  }, [])
+
+  // Checked once at launch, not continuously -- an autosave only matters for recovering from a
+  // crash/force-quit on the PREVIOUS run; once this session has its own imported project (or the
+  // user dismisses it), it's no longer relevant until the next relaunch.
+  useEffect(() => {
+    window.api.hasAutosave().then(setAutosaveAvailable)
+  }, [])
+
+  // Paired with the crash-diagnostics logging in main/index.ts: a renderer/GPU crash mid-session
+  // shouldn't also silently lose whatever hasn't been manually saved to a real .gpo file. Runs on a
+  // fixed wall-clock timer, not debounced off every edit -- the telemetry cache can be several MB
+  // for a long session, so writing it on every widget tweak would be wasteful I/O for a
+  // just-in-case safety net, not a feature the user is actively watching. Latest state is read via
+  // a ref (updated every render) rather than closed over directly, so the interval itself is set up
+  // ONCE and actually fires every 60s of wall-clock time -- putting these fast-changing values in
+  // this effect's own deps would tear down and restart the timer on every single edit, and a user
+  // who never pauses editing for a full 60s would never get an autosave at all.
+  const latestAutosaveInputRef = useRef({ imported, widgets, startFinish, trimStartMs, trimEndMs })
+  latestAutosaveInputRef.current = { imported, widgets, startFinish, trimStartMs, trimEndMs }
+  useEffect(() => {
+    const AUTOSAVE_INTERVAL_MS = 60_000
+    const interval = setInterval(() => {
+      const current = latestAutosaveInputRef.current
+      if (!current.imported) return
+      const payload: ProjectPayload = { ...current, imported: current.imported }
+      window.api.saveAutosave(payload).catch((err) => {
+        console.error('[autosave] failed:', err)
+      })
+    }, AUTOSAVE_INTERVAL_MS)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -129,6 +165,34 @@ function App(): React.JSX.Element {
     }
   }
 
+  async function handleRecoverAutosave(): Promise<void> {
+    setError(null)
+    setStatus('loading')
+    try {
+      const project = await window.api.loadAutosave()
+      if (!project) {
+        setAutosaveAvailable(false)
+        setStatus('idle')
+        return
+      }
+      setImported(project.imported)
+      loadWidgets(project.widgets)
+      setStartFinish(project.startFinish)
+      setTrim(project.trimStartMs, project.trimEndMs)
+      setAutosaveAvailable(false)
+      setStatus('idle')
+    } catch (err) {
+      console.error('[autosave] recovery failed:', err)
+      setError(err instanceof Error ? err.message : String(err))
+      setStatus('error')
+    }
+  }
+
+  function handleDismissAutosave(): void {
+    setAutosaveAvailable(false)
+    window.api.clearAutosave().catch((err) => console.error('[autosave] failed to clear:', err))
+  }
+
   async function handleSaveProject(): Promise<void> {
     if (!imported) return
     setError(null)
@@ -166,6 +230,22 @@ function App(): React.JSX.Element {
           </div>
           <div className="toolbar__actions">
             {savedPath && <span className="toolbar__saved-hint">Saved</span>}
+            <button
+              className="import-button import-button--ghost"
+              onClick={undo}
+              disabled={!canUndo || isExporting}
+              title="Undo (Ctrl+Z)"
+            >
+              Undo
+            </button>
+            <button
+              className="import-button import-button--ghost"
+              onClick={redo}
+              disabled={!canRedo || isExporting}
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              Redo
+            </button>
             <button className="import-button import-button--ghost" onClick={handleSaveProject} disabled={isExporting}>
               Save Project
             </button>
@@ -253,6 +333,18 @@ function App(): React.JSX.Element {
           Open Project
         </button>
       </div>
+
+      {autosaveAvailable && status !== 'loading' && (
+        <div className="export-banner export-banner--done">
+          An autosaved session was found (likely from a crash or force-quit) — recover it?
+          <button className="import-button import-button--ghost" onClick={handleRecoverAutosave}>
+            Recover
+          </button>
+          <button className="export-banner__dismiss" onClick={handleDismissAutosave} title="Discard the autosave">
+            ×
+          </button>
+        </div>
+      )}
 
       {status === 'loading' && importProgress && <ImportProgressBanner progress={importProgress} />}
       {status === 'error' && <p className="app-shell__error">{error}</p>}

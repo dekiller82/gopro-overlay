@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta } from '../shared/types'
+import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset } from '../shared/types'
 
 export interface ExportProgress {
   done: number
@@ -16,6 +16,14 @@ const api = {
   saveProject: (payload: ProjectPayload): Promise<string | null> => ipcRenderer.invoke('project:save', payload),
   loadProject: (): Promise<ProjectPayload | null> => ipcRenderer.invoke('project:load'),
   exportVideo: (payload: ProjectPayload): Promise<string | null> => ipcRenderer.invoke('export:start', payload),
+  listLayoutPresets: (): Promise<WidgetLayoutPreset[]> => ipcRenderer.invoke('layouts:list'),
+  saveLayoutPreset: (name: string, widgets: WidgetInstance[]): Promise<WidgetLayoutPreset[]> =>
+    ipcRenderer.invoke('layouts:save', name, widgets),
+  deleteLayoutPreset: (id: string): Promise<WidgetLayoutPreset[]> => ipcRenderer.invoke('layouts:delete', id),
+  hasAutosave: (): Promise<boolean> => ipcRenderer.invoke('autosave:has'),
+  saveAutosave: (payload: ProjectPayload): Promise<void> => ipcRenderer.invoke('autosave:save', payload),
+  loadAutosave: (): Promise<ProjectPayload | null> => ipcRenderer.invoke('autosave:load'),
+  clearAutosave: (): Promise<void> => ipcRenderer.invoke('autosave:clear'),
   onExportProgress: (callback: (progress: ExportProgress) => void): (() => void) => {
     const listener = (_event: unknown, progress: ExportProgress): void => callback(progress)
     ipcRenderer.on('export:progress', listener)
