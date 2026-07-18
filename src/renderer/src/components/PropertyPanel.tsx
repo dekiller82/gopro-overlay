@@ -165,10 +165,25 @@ function PropertyPanel(): React.JSX.Element {
     window.api.listLayoutPresets().then(setLayoutPresets)
   }, [])
 
-  function saveCurrentLayout(): void {
-    const name = window.prompt('Name this layout:')
+  // Electron's renderer does not support window.prompt() (it throws "prompt() is not supported."),
+  // so naming a new layout uses an inline text field instead of a native prompt dialog.
+  const [isSavingLayout, setIsSavingLayout] = useState(false)
+  const [newLayoutName, setNewLayoutName] = useState('')
+
+  function startSaveLayout(): void {
+    setNewLayoutName('')
+    setIsSavingLayout(true)
+  }
+
+  function confirmSaveLayout(): void {
+    const name = newLayoutName.trim()
     if (!name) return
     window.api.saveLayoutPreset(name, widgets).then(setLayoutPresets)
+    setIsSavingLayout(false)
+  }
+
+  function cancelSaveLayout(): void {
+    setIsSavingLayout(false)
   }
 
   function applyLayout(preset: WidgetLayoutPreset): void {
@@ -296,24 +311,52 @@ function PropertyPanel(): React.JSX.Element {
           <span>Layouts</span>
         </div>
         <div className="property-panel__add-row">
-          <button className="property-panel__add" onClick={saveCurrentLayout} disabled={widgets.length === 0}>
-            Save current layout…
-          </button>
+          {isSavingLayout ? (
+            <>
+              <input
+                type="text"
+                className="layout-save-input"
+                autoFocus
+                placeholder="Layout name"
+                value={newLayoutName}
+                onChange={(e) => setNewLayoutName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmSaveLayout()
+                  else if (e.key === 'Escape') cancelSaveLayout()
+                }}
+              />
+              <button className="property-panel__add" onClick={confirmSaveLayout} disabled={!newLayoutName.trim()}>
+                Save
+              </button>
+              <button className="property-panel__delete" onClick={cancelSaveLayout}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button className="property-panel__add" onClick={startSaveLayout} disabled={widgets.length === 0}>
+              Save current layout…
+            </button>
+          )}
         </div>
         <ul className="widget-list">
           {layoutPresets.length === 0 && <li className="widget-list__empty">No saved layouts yet</li>}
           {layoutPresets.map((preset) => (
             <li key={preset.id} className="widget-list__item layout-preset-row">
-              <span className="layout-preset-row__name" onClick={() => applyLayout(preset)} title="Apply this layout">
+              <span className="layout-preset-row__name" title={preset.name}>
                 {preset.name}
               </span>
-              <button
-                className="property-panel__delete"
-                onClick={() => deleteLayout(preset.id)}
-                title="Delete this saved layout"
-              >
-                ×
-              </button>
+              <div className="layout-preset-row__actions">
+                <button className="property-panel__add" onClick={() => applyLayout(preset)} title="Load this saved layout">
+                  Load
+                </button>
+                <button
+                  className="property-panel__delete"
+                  onClick={() => deleteLayout(preset.id)}
+                  title="Delete this saved layout"
+                >
+                  ×
+                </button>
+              </div>
             </li>
           ))}
         </ul>

@@ -537,6 +537,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  cursor: default;
 }
 
 .layout-preset-row__name {
@@ -545,6 +546,23 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.layout-preset-row__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.layout-save-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
 }
 
 .field {

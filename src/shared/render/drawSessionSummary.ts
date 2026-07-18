@@ -152,11 +152,10 @@ export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummar
   const unitLabel = speedUnitLabel(style.unit)
   const leftCx = rect.x + rect.w * 0.27
   const rightCx = rect.x + rect.w * 0.73
-  const rowsTop = rect.y + rect.h * 0.32 - slideOffset
-  const rowH = rect.h * 0.19
   // Real available width per column (two columns, with a gap between them) -- not an arbitrary
   // rowH-relative constant, so text actually shrinks to fit a narrower widget instead of overlapping.
   const colMaxWidth = rect.w * 0.42
+  const hasSectorRow = data.bestS1Ms != null || data.bestS2Ms != null || data.bestS3Ms != null
 
   const rows: [StatCell, StatCell][] = [
     [
@@ -176,6 +175,17 @@ export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummar
     ]
   ]
 
+  // Row height is derived from the ACTUAL available vertical space divided by however many rows
+  // will actually be drawn (3, or 4 when the optional sector row is shown) -- previously a fixed
+  // rowH assumed exactly 3 rows always, so whenever the sector row was also shown the total content
+  // needed more height than the card reserved for it, pushing that row below the card's own bottom
+  // edge instead of shrinking to fit.
+  const rowsTopBase = rect.y + rect.h * 0.3
+  const rowsBottomBase = rect.y + rect.h * 0.95
+  const totalRowSlots = rows.length + (hasSectorRow ? 1 : 0)
+  const rowH = (rowsBottomBase - rowsTopBase) / totalRowSlots
+  const rowsTop = rowsTopBase - slideOffset
+
   for (let i = 0; i < rows.length; i++) {
     const rowY = rowsTop + rowH * i
     drawStatCell(ctx, rows[i][0], leftCx, rowY + rowH * 0.28, rowY + rowH * 0.72, rowH, colMaxWidth, style, outlineWidth)
@@ -184,7 +194,7 @@ export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummar
 
   // Best sectors, three across, only if at least one is known -- mirrors the Sector Timer widget's
   // own S1/S2/S3 layout convention for visual consistency between the two widgets.
-  if (data.bestS1Ms != null || data.bestS2Ms != null || data.bestS3Ms != null) {
+  if (hasSectorRow) {
     const sectorY = rowsTop + rowH * rows.length
     const sectorLabels = ['BEST S1', 'BEST S2', 'BEST S3']
     const sectorValues = [data.bestS1Ms, data.bestS2Ms, data.bestS3Ms]
