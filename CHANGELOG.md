@@ -26,6 +26,9 @@ All notable changes to GoPro Overlay are documented here.
   and after) — doesn't touch your project's actual saved trim range.
 - **In-app "What's New" viewer** — shows the changelog automatically once per new version, plus a
   toolbar button to reopen it anytime.
+- **Update notification** — checks once per launch whether a newer version has been released and
+  shows a dismissible banner with a link to it if so. Dismissing only suppresses that specific
+  version's notice, so it comes back once an actually newer release ships.
 
 ### Fixed
 - **Fixed a real memory leak that could crash the app with an out-of-memory error during a long
