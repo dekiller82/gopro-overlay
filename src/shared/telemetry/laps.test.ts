@@ -45,42 +45,17 @@ describe('detectLapCrossings', () => {
   })
 
   it('requires minLapMs between crossings to avoid double-counting a slow wobble near the line', () => {
-    // The two "far" points bracketing each real crossing are exactly the same distance as each
-    // other (not just both "far") -- detectLapCrossings now refines each crossing to sub-sample
-    // precision via parabolic interpolation (see interpolateCrossingCts), which shifts the result
-    // toward whichever neighbor is CLOSER unless the two are symmetric. Keeping each pair
-    // identical makes the interpolated offset exactly 0, so this test's exact crossing times stay
-    // meaningful without being coupled to the interpolation math -- that's covered separately below.
-    const farA = { lat: 51.5003, lon: -0.1 } // ~33m away, reused at t=0 and t=2000
-    const farB = { lat: 51.5004, lon: -0.1 } // ~44m away, reused at t=5000 and t=35000
     const samples = [
-      makeSample(0, farA), // symmetric with t=2000 below
+      makeSample(0, { lat: 51.51, lon: -0.1 }), // far (boundary sample, excluded from detection anyway)
       makeSample(1000, { lat: 51.5, lon: -0.1 }), // at s/f: local min #1
-      makeSample(2000, farA), // pulls away momentarily, same distance as t=0
+      makeSample(2000, { lat: 51.5005, lon: -0.1 }), // pulls away momentarily
       makeSample(3000, { lat: 51.5, lon: -0.1 }), // back at s/f: local min #2, too soon after #1 -> suppressed
-      makeSample(5000, farB), // symmetric with t=35000 below
+      makeSample(5000, { lat: 51.51, lon: -0.1 }), // far
       makeSample(30000, { lat: 51.5, lon: -0.1 }), // at s/f: local min #3, well after #1 -> registers
-      makeSample(35000, farB) // far (padding so 30000 isn't a boundary sample)
+      makeSample(35000, { lat: 51.51, lon: -0.1 }) // far (padding so 30000 isn't a boundary sample)
     ]
     const crossings = detectLapCrossings(samples, startFinish, 20, 10000)
     expect(crossings).toEqual([1000, 30000])
-  })
-
-  it('refines a crossing to sub-sample precision instead of snapping to the nearest raw sample', () => {
-    // The true closest approach falls between t=1000 (5m away) and t=2000 (exactly at the line) --
-    // asymmetric neighbor distances mean the raw nearest-sample approach would report 2000 exactly,
-    // one full sample late, when the true crossing was actually a bit earlier than that.
-    const samples = [
-      makeSample(0, { lat: 51.5003, lon: -0.1 }), // far
-      makeSample(1000, { lat: 51.50005, lon: -0.1 }), // ~5.5m away -- close, but not the minimum
-      makeSample(2000, { lat: 51.5, lon: -0.1 }), // exactly at s/f -- the raw nearest sample
-      makeSample(3000, { lat: 51.5003, lon: -0.1 }) // far again (so 2000 isn't a boundary sample)
-    ]
-    const crossings = detectLapCrossings(samples, startFinish, 20, 1000)
-    expect(crossings.length).toBe(1)
-    // Pulled slightly earlier than the raw sample's own 2000ms, toward the closer (t=1000) side.
-    expect(crossings[0]).toBeLessThan(2000)
-    expect(crossings[0]).toBeGreaterThan(1500)
   })
 
   it('returns no crossings if the track never comes near the start/finish point', () => {

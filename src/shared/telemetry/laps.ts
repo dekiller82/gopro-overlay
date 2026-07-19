@@ -51,40 +51,10 @@ export function nearestLatLon(samples: TelemetrySample[], cts: number): LatLon |
 }
 
 /**
- * Sub-sample estimate of the true closest-approach time around a detected local-minimum sample,
- * fit by a parabola through the minimum and its two neighbors' SQUARED distances -- squared
- * distance is (near-exactly) quadratic in time for a path moving at roughly constant velocity past
- * a fixed point, which holds well over the short (~50-200ms) window between 3 consecutive GPS
- * samples even though raw distance itself isn't quadratic. Without this, the crossing time is
- * quantized to whichever raw sample happened to be nearest, which can shift lap splits by up to
- * half a sample interval for no reason related to the driver's actual line.
- *
- * Uses the classic equal-spacing parabolic-interpolation formula (offset expressed as a fraction of
- * one local sample step, not solved from the raw unequally-spaced timestamps) specifically because
- * that formula is provably bounded to +/-0.5 of a step for any genuine local minimum -- safe even
- * if real sample spacing isn't perfectly uniform, since it can never extrapolate past either
- * neighbor. Falls back to the raw sample's own cts if the fit is degenerate (near-duplicate
- * timestamps, or a perfectly flat/noisy triple with no real curvature).
- */
-function interpolateCrossingCts(prevCts: number, atCts: number, nextCts: number, distPrev: number, distAt: number, distNext: number): number {
-  const y0 = distPrev * distPrev
-  const y1 = distAt * distAt
-  const y2 = distNext * distNext
-  const denom = y0 - 2 * y1 + y2
-  if (!Number.isFinite(denom) || Math.abs(denom) < 1e-9) return atCts
-
-  const offset = Math.max(-0.5, Math.min(0.5, (y0 - y2) / (2 * denom)))
-  const avgStepMs = (nextCts - prevCts) / 2
-  return atCts + offset * avgStepMs
-}
-
-/**
  * Detects start/finish crossings as local minima in distance-to-point that dip under
  * `thresholdMeters`, requiring at least `minLapMs` between consecutive crossings so a slow
  * pass near the line (or GPS noise) doesn't register as multiple laps. Heuristic, not a proper
- * timing loop -- tune the threshold if a track's pit/paddock passes close to the line. Crossing
- * times are refined to sub-sample precision (see interpolateCrossingCts) rather than snapped to
- * whichever raw GPS sample happened to be nearest.
+ * timing loop -- tune the threshold if a track's pit/paddock passes close to the line.
  */
 export function detectLapCrossings(
   samples: TelemetrySample[],
@@ -101,7 +71,7 @@ export function detectLapCrossings(
   for (let i = 1; i < samples.length - 1; i++) {
     const isLocalMin = distances[i] <= distances[i - 1] && distances[i] <= distances[i + 1]
     if (isLocalMin && distances[i] <= thresholdMeters) {
-      const cts = interpolateCrossingCts(samples[i - 1].cts, samples[i].cts, samples[i + 1].cts, distances[i - 1], distances[i], distances[i + 1])
+      const cts = samples[i].cts
       if (cts - lastCrossingCts >= minLapMs) {
         crossings.push(cts)
         lastCrossingCts = cts
