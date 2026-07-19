@@ -29,6 +29,12 @@ All notable changes to GoPro Overlay are documented here.
 - **Update notification** — checks once per launch whether a newer version has been released and
   shows a dismissible banner with a link to it if so. Dismissing only suppresses that specific
   version's notice, so it comes back once an actually newer release ships.
+- **Jump-to-lap markers on the timeline** — every detected start/finish crossing now shows as a
+  clickable marker on the scrub bar (hover for the lap number and the preceding lap's time), not
+  just the single fastest lap.
+- **Custom Text/Logo widget** — freeform multi-line text (driver name, event title, sponsor
+  watermark) and/or an uploaded image, the first widget whose content isn't derived from telemetry
+  at all.
 
 ### Fixed
 - **Fixed a real memory leak that could crash the app with an out-of-memory error during a long
