@@ -2,6 +2,15 @@
 
 All notable changes to GoPro Overlay are documented here.
 
+## [0.1.5] - 2026-07-19
+
+### Fixed
+- **Fixed video preview/import/export failing in packaged builds** (`spawn ENOTDIR`, reported on a
+  Linux AppImage build) — the bundled ffmpeg/ffprobe binaries' paths weren't being resolved through
+  electron-builder's `asarUnpack` correctly, so packaged installs (unlike a dev build run from
+  source) could fail to spawn them at all. Affected clip import probing, the preview-proxy
+  transcode fallback (used when a clip doesn't play natively), and real video export.
+
 ## [0.1.4] - 2026-07-19
 
 ### Added
