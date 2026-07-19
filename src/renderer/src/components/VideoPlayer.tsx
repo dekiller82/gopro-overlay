@@ -2,6 +2,7 @@ import { CSSProperties, RefObject, useEffect, useRef, useState } from 'react'
 import { toAppVideoUrl } from '@shared/fileUrl'
 import { clipIndexAtGlobalMs, localMsWithinClip } from '@shared/timeline/clipTiming'
 import { useProjectStore } from '../store/projectStore'
+import { nextProxyStage, type ProxyStage } from './previewFallbackStage'
 
 /** Imperative seek API -- Editor.tsx creates one ref and hands it to both VideoPlayer (which
  *  populates it) and Timeline (which calls it). A direct method call has no state to go stale,
@@ -50,12 +51,9 @@ function VideoPlayer({ videoRef, style, playerApiRef }: Props): React.JSX.Elemen
   // path if native playback fails.
   const [srcPath, setSrcPath] = useState<string | null>(null)
 
-  // Per-clip proxy-retry tracking (was a single boolean pre-multi-clip).
-  const triedProxyClipsRef = useRef<Set<number>>(new Set())
-  // Separate from triedProxyClipsRef -- the LRV sidecar (see main/video/lrv.ts) is tried BEFORE the
-  // from-scratch transcode, not instead of it, so a clip needs its own "already tried" tracking to
-  // fall through to the transcode if the LRV also fails (or doesn't exist).
-  const triedLrvClipsRef = useRef<Set<number>>(new Set())
+  // Per-clip fallback-ladder position -- see previewFallbackStage.ts's nextProxyStage for why this
+  // needs to be a full stage, not just a single "did we try a proxy yet" boolean.
+  const proxyStageRef = useRef<Map<number, ProxyStage>>(new Map())
   // Bumped every time the active clip actually changes -- guards every async continuation
   // (proxy-fallback .then(), the pending-seek-on-loadeddata handler) against applying a result
   // for a clip the user has since scrubbed away from.
@@ -72,8 +70,7 @@ function VideoPlayer({ videoRef, style, playerApiRef }: Props): React.JSX.Elemen
   const firstClipPath = imported?.clips[0]?.video.path ?? null
   useEffect(() => {
     setActiveClipIndex(0)
-    triedProxyClipsRef.current = new Set()
-    triedLrvClipsRef.current = new Set()
+    proxyStageRef.current = new Map()
     pendingSeekRef.current = null
   }, [firstClipPath])
 
@@ -201,49 +198,57 @@ function VideoPlayer({ videoRef, style, playerApiRef }: Props): React.JSX.Elemen
       const code = mediaError?.code ?? 0
       console.error('[video] error event for src:', srcPath, 'code:', code, mediaError?.message)
 
-      // Tried before the from-scratch transcode below: GoPro's own LRV sidecar (see
-      // main/video/lrv.ts) is already a small, fast-start H.264 file, so when one exists this is a
-      // simple src swap -- no transcode wait at all, and it also sidesteps the slow-SD-card seek
-      // stall this same error path is often actually caused by (see README's Known limitations),
-      // since the LRV is far smaller and faster to seek through than the original.
-      if (!triedLrvClipsRef.current.has(activeClipIndex) && isFormatError(code) && activeClip.video.lrvPath) {
-        triedLrvClipsRef.current.add(activeClipIndex)
+      if (!isFormatError(code)) {
+        setErrorMessage(mediaError ? (MEDIA_ERROR_MESSAGES[code] ?? `Video error (code ${code}).`) : 'Unknown video error.')
+        setLoadState('error')
+        return
+      }
+
+      const stage = proxyStageRef.current.get(activeClipIndex)
+      const next = nextProxyStage(stage, Boolean(activeClip.video.lrvPath))
+
+      if (next === null) {
+        // Every tier (LRV if any, remux, real transcode) has been tried and none of them played --
+        // nothing left to try.
+        setErrorMessage(mediaError ? (MEDIA_ERROR_MESSAGES[code] ?? `Video error (code ${code}).`) : 'Unknown video error.')
+        setLoadState('error')
+        return
+      }
+      proxyStageRef.current.set(activeClipIndex, next)
+
+      // GoPro's own LRV sidecar (see main/video/lrv.ts) is already a small, fast-start H.264 file,
+      // so this is a simple src swap -- no transcode wait at all, and it also sidesteps the
+      // slow-SD-card seek stall this same error path is often actually caused by (see README's
+      // Known limitations), since the LRV is far smaller and faster to seek through than the original.
+      if (next === 'lrv') {
         console.log('[video] native playback failed, trying LRV sidecar:', activeClip.video.lrvPath)
-        setSrcPath(activeClip.video.lrvPath)
+        setSrcPath(activeClip.video.lrvPath!)
         return
       }
-
-      if (!triedProxyClipsRef.current.has(activeClipIndex) && isFormatError(code)) {
-        triedProxyClipsRef.current.add(activeClipIndex)
-        setLoadState('transcoding')
-        setTranscodeProgress(0)
-        const generationAtScheduling = generationRef.current
-        const clipToFix = activeClip
-        console.log('[video] native playback failed, requesting preview proxy for:', clipToFix.video.path)
-        window.api
-          .ensurePreviewProxy(clipToFix.video)
-          .then((proxyPath) => {
-            // Stale -- the user has since scrubbed away from this clip; applying this now would
-            // yank playback back to a clip they're no longer on.
-            if (generationAtScheduling !== generationRef.current) return
-            console.log('[video] proxy ready, switching src to:', proxyPath)
-            setSrcPath(proxyPath)
-          })
-          .catch((err) => {
-            if (generationAtScheduling !== generationRef.current) return
-            console.error('[video] preview proxy fallback failed:', err)
-            setErrorMessage(
-              `Native preview isn't supported for this file, and generating a compatible preview also failed: ${
-                err instanceof Error ? err.message : String(err)
-              }`
-            )
-            setLoadState('error')
-          })
-        return
-      }
-
-      setErrorMessage(mediaError ? (MEDIA_ERROR_MESSAGES[code] ?? `Video error (code ${code}).`) : 'Unknown video error.')
-      setLoadState('error')
+      setLoadState('transcoding')
+      setTranscodeProgress(0)
+      const generationAtScheduling = generationRef.current
+      const clipToFix = activeClip
+      console.log(`[video] native playback failed, requesting preview proxy (${next}) for:`, clipToFix.video.path)
+      window.api
+        .ensurePreviewProxy(clipToFix.video, next === 'transcode')
+        .then((proxyPath) => {
+          // Stale -- the user has since scrubbed away from this clip; applying this now would
+          // yank playback back to a clip they're no longer on.
+          if (generationAtScheduling !== generationRef.current) return
+          console.log('[video] proxy ready, switching src to:', proxyPath)
+          setSrcPath(proxyPath)
+        })
+        .catch((err) => {
+          if (generationAtScheduling !== generationRef.current) return
+          console.error('[video] preview proxy fallback failed:', err)
+          setErrorMessage(
+            `Native preview isn't supported for this file, and generating a compatible preview also failed: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          )
+          setLoadState('error')
+        })
     }
 
     el.addEventListener('play', onPlay)

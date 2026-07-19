@@ -12,7 +12,8 @@ const api = {
   importVideo: (filePaths: string[]): Promise<ImportResult> => ipcRenderer.invoke('video:import', filePaths),
   addClips: (existing: ImportResult, filePaths: string[]): Promise<ImportResult> =>
     ipcRenderer.invoke('video:add-clips', existing, filePaths),
-  ensurePreviewProxy: (video: VideoMeta): Promise<string> => ipcRenderer.invoke('video:ensure-preview-proxy', video),
+  ensurePreviewProxy: (video: VideoMeta, forceTranscode?: boolean): Promise<string> =>
+    ipcRenderer.invoke('video:ensure-preview-proxy', video, forceTranscode),
   saveProject: (payload: ProjectPayload): Promise<string | null> => ipcRenderer.invoke('project:save', payload),
   loadProject: (): Promise<ProjectPayload | null> => ipcRenderer.invoke('project:load'),
   loadProjectFromPath: (projectPath: string): Promise<ProjectPayload> => ipcRenderer.invoke('project:load-path', projectPath),

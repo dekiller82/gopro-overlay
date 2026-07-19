@@ -28,11 +28,18 @@ export function registerIpcHandlers(): void {
   })
 
   // Preview is attempted natively (full-res, no transcode) first -- this only runs when the
-  // renderer's <video> element actually fails to play the original file at runtime.
-  ipcMain.handle('video:ensure-preview-proxy', async (event, video: VideoMeta): Promise<string> => {
-    return ensurePreviewProxy(video, (fraction) => {
-      event.sender.send('video:preview-proxy-progress', { fraction })
-    })
+  // renderer's <video> element actually fails to play the original file at runtime. `forceTranscode`
+  // is set by the renderer on a SECOND call for the same clip, when the first (remuxed) proxy it
+  // already tried also failed to play -- see ensurePreviewProxy's own doc comment for why a
+  // successful remux isn't proof of playability.
+  ipcMain.handle('video:ensure-preview-proxy', async (event, video: VideoMeta, forceTranscode?: boolean): Promise<string> => {
+    return ensurePreviewProxy(
+      video,
+      (fraction) => {
+        event.sender.send('video:preview-proxy-progress', { fraction })
+      },
+      forceTranscode
+    )
   })
 
   ipcMain.handle('video:import', async (event, filePaths: string[]): Promise<ImportResult> => {

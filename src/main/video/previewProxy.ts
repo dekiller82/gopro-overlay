@@ -104,35 +104,44 @@ async function cachedOrGenerate(
  *  1. Fast remux: stream-copy video+audio into a clean MP4 (no re-encode, near-instant, keeps full
  *     original resolution/quality). Fixes files that only fail because of extra GoPro metadata
  *     tracks (gpmd/tmcd/fdsc) confusing the <video> demuxer -- but does NOT change the video codec,
- *     so it can't help if the codec itself isn't decodable in this Chromium build.
- *  2. VP9/WebM transcode: if the remux still doesn't play, the codec itself is the problem (this
- *     covers the case where the Electron build's Chromium lacks H.264 decode support entirely --
- *     a real, documented limitation of some Electron builds, unrelated to HEVC). VP9+Opus in WebM
- *     is royalty-free and always supported by Chromium regardless of proprietary-codec licensing.
+ *     so it can't help if the codec itself isn't decodable in this Chromium build. Since ffmpeg
+ *     happily stream-copies a codec it can't itself decode, a "successful" remux is NOT proof the
+ *     result will actually play -- this function has no way to verify that from the main process,
+ *     only the renderer's own <video> element can, by trying to play the result. That's why
+ *     `forceTranscode` exists: the caller (VideoPlayer.tsx) sets it when the remuxed file it
+ *     already tried ALSO failed to play, to skip straight to the tier that actually changes the
+ *     codec instead of generating (and re-serving) the identical unplayable remux again.
+ *  2. VP9/WebM transcode: a real re-encode, so it fixes a genuinely undecodable source codec (e.g.
+ *     an Electron build lacking H.264 decode, or HEVC without platform support) that remuxing
+ *     can't touch. VP9+Opus in WebM is royalty-free and always supported by Chromium regardless of
+ *     proprietary-codec licensing.
  */
 export async function ensurePreviewProxy(
   video: VideoMeta,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  forceTranscode = false
 ): Promise<string> {
   const ffmpegPath = resolveUnpackedBinaryPath(ffmpegPathRaw)
   if (!ffmpegPath) throw new Error('Bundled ffmpeg binary not found for this platform')
   const resolvedFfmpegPath: string = ffmpegPath
 
-  const remuxPath = await getProxyPath(video.path, 'remux', 'mp4')
-  try {
-    return await cachedOrGenerate(remuxPath, () =>
-      runFfmpeg(
-        resolvedFfmpegPath,
-        video.path,
-        remuxPath,
-        'mp4',
-        ['-map', '0:v:0', '-map', '0:a:0?', '-c', 'copy', '-movflags', '+faststart'],
-        video,
-        onProgress
+  if (!forceTranscode) {
+    const remuxPath = await getProxyPath(video.path, 'remux', 'mp4')
+    try {
+      return await cachedOrGenerate(remuxPath, () =>
+        runFfmpeg(
+          resolvedFfmpegPath,
+          video.path,
+          remuxPath,
+          'mp4',
+          ['-map', '0:v:0', '-map', '0:a:0?', '-c', 'copy', '-movflags', '+faststart'],
+          video,
+          onProgress
+        )
       )
-    )
-  } catch (remuxErr) {
-    console.warn('[preview-proxy] fast remux failed, falling back to VP9/WebM transcode:', remuxErr)
+    } catch (remuxErr) {
+      console.warn('[preview-proxy] fast remux failed, falling back to VP9/WebM transcode:', remuxErr)
+    }
   }
 
   const webmPath = await getProxyPath(video.path, 'vp9', 'webm')

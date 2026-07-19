@@ -10,7 +10,7 @@ interface Api {
   pickVideoFiles: () => Promise<string[]>
   importVideo: (filePaths: string[]) => Promise<ImportResult>
   addClips: (existing: ImportResult, filePaths: string[]) => Promise<ImportResult>
-  ensurePreviewProxy: (video: VideoMeta) => Promise<string>
+  ensurePreviewProxy: (video: VideoMeta, forceTranscode?: boolean) => Promise<string>
   saveProject: (payload: ProjectPayload) => Promise<string | null>
   loadProject: () => Promise<ProjectPayload | null>
   loadProjectFromPath: (projectPath: string) => Promise<ProjectPayload>
