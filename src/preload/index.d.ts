@@ -1,5 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../shared/types'
+import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject, UpdateCheckResult } from '../shared/types'
 
 interface ExportProgress {
   done: number
@@ -25,6 +25,7 @@ interface Api {
   clearAutosave: () => Promise<void>
   getAppVersion: () => Promise<string>
   getChangelog: () => Promise<string>
+  checkForUpdate: () => Promise<UpdateCheckResult | null>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
   onImportProgress: (callback: (progress: ImportProgress) => void) => () => void
   onPreviewProxyProgress: (callback: (progress: { fraction: number }) => void) => () => void

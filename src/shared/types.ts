@@ -231,3 +231,12 @@ export interface ImportProgress {
   totalClips: number
 }
 
+/** Result of comparing the running app against the latest tagged GitHub release (see
+ *  main/app/updateCheck.ts). Null (not this type) when the check couldn't complete at all. */
+export interface UpdateCheckResult {
+  updateAvailable: boolean
+  currentVersion: string
+  latestVersion: string
+  releaseUrl: string
+}
+

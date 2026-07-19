@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../shared/types'
+import type { ImportResult, ProjectPayload, ImportProgress, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject, UpdateCheckResult } from '../shared/types'
 
 export interface ExportProgress {
   done: number
@@ -28,6 +28,7 @@ const api = {
   clearAutosave: (): Promise<void> => ipcRenderer.invoke('autosave:clear'),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   getChangelog: (): Promise<string> => ipcRenderer.invoke('app:getChangelog'),
+  checkForUpdate: (): Promise<UpdateCheckResult | null> => ipcRenderer.invoke('app:checkForUpdate'),
   onExportProgress: (callback: (progress: ExportProgress) => void): (() => void) => {
     const listener = (_event: unknown, progress: ExportProgress): void => callback(progress)
     ipcRenderer.on('export:progress', listener)

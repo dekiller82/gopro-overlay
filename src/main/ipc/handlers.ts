@@ -6,9 +6,10 @@ import { listLayoutPresets, saveLayoutPreset, deleteLayoutPreset, defaultLayoutP
 import { autosaveProjectPath, hasAutosave, clearAutosave } from '../project/autosave'
 import { listRecentProjects, addRecentProject, removeRecentProject, defaultRecentProjectsFilePath } from '../project/recentProjects'
 import { defaultChangelogPath, readChangelog } from '../app/changelog'
+import { checkForUpdate } from '../app/updateCheck'
 import { runExport } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
-import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../../shared/types'
+import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject, UpdateCheckResult } from '../../shared/types'
 
 const PROJECT_FILTERS = [{ name: 'GoPro Overlay Project', extensions: ['gpo'] }]
 const VIDEO_FILTERS = [{ name: 'GoPro video', extensions: ['mp4', 'mov', 'MP4', 'MOV'] }]
@@ -111,6 +112,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('app:getVersion', (): string => app.getVersion())
   ipcMain.handle('app:getChangelog', async (): Promise<string> => readChangelog(defaultChangelogPath()))
+  ipcMain.handle('app:checkForUpdate', async (): Promise<UpdateCheckResult | null> => checkForUpdate(app.getVersion()))
 
   ipcMain.handle('export:start', async (event, payload: ProjectPayload): Promise<string | null> => {
     const win = BrowserWindow.getFocusedWindow()

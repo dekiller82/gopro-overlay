@@ -5,9 +5,10 @@ import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
 import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
 import { formatTime } from '@shared/format'
-import type { ImportProgress, ProjectPayload, RecentProject } from '@shared/types'
+import type { ImportProgress, ProjectPayload, RecentProject, UpdateCheckResult } from '@shared/types'
 
 const LAST_SEEN_VERSION_KEY = 'gpo-last-seen-version'
+const DISMISSED_UPDATE_VERSION_KEY = 'gpo-dismissed-update-version'
 
 const IMPORT_PHASE_LABELS: Record<ImportProgress['phase'], string> = {
   extracting: 'Reading video file',
@@ -27,6 +28,20 @@ function ImportProgressBanner({ progress }: { progress: ImportProgress }): React
         {clipLabel}
         {label}… {pct}%
       </span>
+    </div>
+  )
+}
+
+function UpdateBanner({ info, onDismiss }: { info: UpdateCheckResult; onDismiss: () => void }): React.JSX.Element {
+  return (
+    <div className="export-banner export-banner--update">
+      A new version ({info.latestVersion}) is available — you're on {info.currentVersion}.
+      <a className="import-button import-button--ghost" href={info.releaseUrl} target="_blank" rel="noreferrer">
+        View release
+      </a>
+      <button className="export-banner__dismiss" onClick={onDismiss} title="Dismiss until the next release">
+        ×
+      </button>
     </div>
   )
 }
@@ -59,6 +74,7 @@ function App(): React.JSX.Element {
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
   const [changelog, setChangelog] = useState('')
   const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
 
   const refreshRecentProjects = (): void => {
     window.api.listRecentProjects().then(setRecentProjects)
@@ -81,6 +97,25 @@ function App(): React.JSX.Element {
       }
     })
   }, [])
+
+  // The one deliberate network call in an otherwise fully offline/local app -- checked once per
+  // launch against GitHub's latest-release API, never blocking anything and never surfacing an
+  // error if it fails (no internet, GitHub unreachable, rate-limited); see checkForUpdate's own
+  // "never throw" contract. Suppressed per-version (not just per-session) once dismissed, the same
+  // way the What's New modal tracks LAST_SEEN_VERSION_KEY, so closing it doesn't nag again on every
+  // relaunch until an actually newer release ships.
+  useEffect(() => {
+    window.api.checkForUpdate().then((result) => {
+      if (!result || !result.updateAvailable) return
+      if (localStorage.getItem(DISMISSED_UPDATE_VERSION_KEY) === result.latestVersion) return
+      setUpdateInfo(result)
+    })
+  }, [])
+
+  function dismissUpdateNotice(): void {
+    if (updateInfo) localStorage.setItem(DISMISSED_UPDATE_VERSION_KEY, updateInfo.latestVersion)
+    setUpdateInfo(null)
+  }
 
   useEffect(() => {
     return window.api.onExportProgress(({ done, total }) => {
@@ -421,6 +456,7 @@ function App(): React.JSX.Element {
             </button>
           </div>
         )}
+        {updateInfo && <UpdateBanner info={updateInfo} onDismiss={dismissUpdateNotice} />}
         {status === 'error' && <p className="app-shell__error toolbar__error">{error}</p>}
         {status === 'loading' && importProgress && <ImportProgressBanner progress={importProgress} />}
         {exportState.phase === 'exporting' && (
@@ -477,6 +513,8 @@ function App(): React.JSX.Element {
           What's New
         </button>
       </div>
+
+      {updateInfo && <UpdateBanner info={updateInfo} onDismiss={dismissUpdateNotice} />}
 
       {autosaveAvailable && status !== 'loading' && (
         <div className="export-banner export-banner--done">

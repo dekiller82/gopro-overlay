@@ -196,6 +196,14 @@ body {
   color: var(--accent);
 }
 
+.export-banner--update {
+  color: #0a84ff;
+}
+
+.export-banner--update a.import-button--ghost {
+  text-decoration: none;
+}
+
 .export-banner__dismiss {
   margin-left: auto;
   background: transparent;
