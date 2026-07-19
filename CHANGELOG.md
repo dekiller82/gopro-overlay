@@ -37,9 +37,6 @@ All notable changes to GoPro Overlay are documented here.
   at all.
 
 ### Fixed
-- **More accurate start/finish crossing times** — previously snapped to whichever raw GPS sample
-  happened to be nearest the line, quantizing lap splits to the GPS sample rate. Now refined to
-  sub-sample precision, so lap times aren't shifted by GPS timing alone.
 - **Session Summary no longer visibly updates while it's on screen** — its stats (distance,
   duration, top speed, avg speed) previously ticked upward for the whole reveal window instead of
   reading as a settled recap; it now shows the session's true final totals throughout.
