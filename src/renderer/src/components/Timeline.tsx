@@ -46,11 +46,18 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
   const trackRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<DragMode>(null)
   const dragRafRef = useRef<number | null>(null)
+  // Whichever element the CURRENT drag gesture actually started on -- the main scrub track and the
+  // sparkline strip below it have different widths/offsets (the track is inset between the
+  // play/step buttons and the time labels; the sparkline spans the full row), so a ratio computed
+  // against the wrong one snaps the seek to a different spot than where the user actually clicked.
+  // Set once at mousedown and reused for the whole gesture (every mousemove AND the final mouseup),
+  // not recomputed from a single shared ref.
+  const dragSourceElementRef = useRef<HTMLElement | null>(null)
 
   const totalDurationMs = imported?.telemetry.videoDurationMs ?? 0
 
   const ratioFromClientX = useCallback((clientX: number) => {
-    const rect = trackRef.current?.getBoundingClientRect()
+    const rect = dragSourceElementRef.current?.getBoundingClientRect()
     if (!rect || rect.width === 0) return 0
     return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
   }, [])
@@ -67,6 +74,7 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!imported) return
       e.preventDefault()
+      dragSourceElementRef.current = trackRef.current
       setDragging('playhead')
       seekToRatio(ratioFromClientX(e.clientX))
     },
@@ -77,6 +85,7 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
     return (e: React.MouseEvent<HTMLDivElement>) => {
       e.preventDefault()
       e.stopPropagation()
+      dragSourceElementRef.current = trackRef.current
       setDragging(which)
     }
   }, [])
@@ -145,6 +154,7 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!imported) return
       e.preventDefault()
+      dragSourceElementRef.current = sparklineRef.current
       const rect = sparklineRef.current?.getBoundingClientRect()
       const ratio = rect && rect.width > 0 ? Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) : 0
       setDragging('playhead')

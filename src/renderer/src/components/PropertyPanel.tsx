@@ -405,31 +405,21 @@ function PropertyPanel(): React.JSX.Element {
         <div className="property-panel__header">
           <span>Color themes</span>
         </div>
-        <span className="field__hint">
-          Recolors every widget currently on the frame in one click -- only color fields (text, accent,
-          background), never position/size. Semantic colors (faster/slower, braking/accelerating) are left
-          alone. One undo step.
-        </span>
-        <ul className="widget-list">
+        <span className="field__hint">Recolor every widget in one click -- position/size untouched.</span>
+        <div className="preset-row">
           {LAYOUT_THEMES.map((theme) => (
-            <li key={theme.name} className="widget-list__item layout-preset-row theme-row">
-              <span className="theme-row__swatch" style={{ background: theme.backgroundColor, border: `2px solid ${theme.accent}` }}>
-                <span className="theme-row__swatch-dot" style={{ background: theme.accent }} />
-              </span>
-              <span className="layout-preset-row__name" title={theme.name}>
-                {theme.name}
-              </span>
-              <button
-                className="property-panel__add"
-                onClick={() => applyTheme(theme)}
-                disabled={widgets.length === 0}
-                title={`Apply the ${theme.name} theme to every widget`}
-              >
-                Apply
-              </button>
-            </li>
+            <button
+              key={theme.name}
+              className="preset-swatch theme-swatch"
+              style={{ background: theme.backgroundColor, border: `2px solid ${theme.accent}` }}
+              onClick={() => applyTheme(theme)}
+              disabled={widgets.length === 0}
+              title={`Apply the ${theme.name} theme to every widget`}
+            >
+              <span className="theme-swatch__dot" style={{ background: theme.accent }} />
+            </button>
           ))}
-        </ul>
+        </div>
       </div>
 
       {selected && (

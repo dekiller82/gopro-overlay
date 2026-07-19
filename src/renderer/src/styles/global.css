@@ -641,17 +641,13 @@ body {
   flex-shrink: 0;
 }
 
-.theme-row__swatch {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.theme-swatch {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.theme-row__swatch-dot {
+.theme-swatch__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -727,6 +723,11 @@ body {
 
 .preset-swatch:hover {
   border-color: var(--text);
+}
+
+.preset-swatch:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .field select,
