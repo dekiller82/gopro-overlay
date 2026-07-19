@@ -94,9 +94,21 @@ export function drawSpeedometerDigital(ctx: Canvas2DLike, options: DrawSpeedomet
 const GAUGE_START_ANGLE = Math.PI * 0.75
 const GAUGE_END_ANGLE = Math.PI * 2.25
 const GAUGE_SWEEP = GAUGE_END_ANGLE - GAUGE_START_ANGLE
-// 9 intervals -> 10 labeled ticks (0, 10, 20, ... in a 0-90 range) -- lines up on round numbers for
-// the common "0 to a multiple of 10/90" gauge ranges this widget is normally configured with.
-const TICK_COUNT = 9
+// Major (labeled) ticks land on a "nice" round step (1/2/5/10x a power of ten) instead of splitting
+// the range into a fixed number of equal fractions -- an arbitrary min/max would otherwise label
+// ticks with ugly fractional values (e.g. a 0-140 range split 9 ways labels "0, 16, 31, 47...").
+const TARGET_MAJOR_TICKS = 9
+// Unlabeled minor ticks between each pair of major ticks, purely decorative reference marks.
+const MINOR_SUBDIVISIONS = 5
+
+function niceTickStep(span: number, targetCount: number): number {
+  if (span <= 0) return 1
+  const roughStep = span / targetCount
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)))
+  const residual = roughStep / magnitude
+  const niceResidual = residual > 5 ? 10 : residual > 2 ? 5 : residual > 1 ? 2 : 1
+  return niceResidual * magnitude
+}
 
 export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedometerOptions): void {
   const { rect, speedMps, style } = options
@@ -108,22 +120,29 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
 
   const cx = rect.x + rect.w / 2
   const cy = rect.y + rect.h / 2
-  // Smaller than the old 0.92 factor -- this style prints tick-value labels (e.g. "0".."90") just
-  // outside the dial ring, so the ring itself needs to sit further in from the widget's edge to
-  // leave room for that text instead of clipping it.
+  // This style prints tick-value labels (e.g. "0".."90") just outside the dial ring, so the ring
+  // itself sits further in from the widget's edge than a plain gauge would, to leave room for them.
   const radius = (Math.min(rect.w, rect.h) / 2) * 0.74
-  const trackRadius = radius * 0.86
   const outlineWidth = scaleToRect(style.textOutlineWidth, rect)
 
-  // Thin unfilled tick marks across the whole sweep (not a continuous background track) -- ticks
-  // beyond the current value stay as bare reference marks instead of a lit/dimmed track.
+  const majorStep = niceTickStep(span, TARGET_MAJOR_TICKS)
+  const minorStep = majorStep / MINOR_SUBDIVISIONS
+  const tickCount = Math.round(span / minorStep)
+
+  // The "progress" readout is every fine tick from zero up to the current value recolored into the
+  // accent color, rather than a separate solid/dashed arc drawn on top -- this is what gives the
+  // buildup its thin, ticked texture instead of a thick continuous ring.
   ctx.save()
-  ctx.strokeStyle = style.color
-  ctx.globalAlpha = 0.55
-  ctx.lineWidth = Math.max(1, radius * 0.02)
-  for (let i = 0; i <= TICK_COUNT; i++) {
-    const angle = GAUGE_START_ANGLE + (i / TICK_COUNT) * GAUGE_SWEEP
-    const inner = radius * 0.92
+  ctx.lineCap = 'round'
+  for (let i = 0; i <= tickCount; i++) {
+    const tickValue = style.min + i * minorStep
+    const angle = GAUGE_START_ANGLE + ((tickValue - style.min) / span) * GAUGE_SWEEP
+    const isMajor = i % MINOR_SUBDIVISIONS === 0
+    const filled = tickValue <= clamped + 1e-6
+    ctx.strokeStyle = filled ? style.accentColor : style.color
+    ctx.globalAlpha = filled ? 1 : 0.85
+    ctx.lineWidth = isMajor ? Math.max(1.4, radius * 0.022) : Math.max(1, radius * (filled ? 0.016 : 0.012))
+    const inner = isMajor ? radius * 0.87 : radius * 0.92
     const outer = radius * 1.0
     ctx.beginPath()
     ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner)
@@ -132,26 +151,13 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
   }
   ctx.restore()
 
-  // Progress ring, rendered as a chain of rounded pill segments (dashed stroke with round caps)
-  // rather than one smooth arc, from the gauge's zero point up to the current value.
-  ctx.save()
-  ctx.strokeStyle = style.accentColor
-  const trackWidth = Math.max(2, radius * 0.16)
-  ctx.lineWidth = trackWidth
-  ctx.lineCap = 'round'
-  ctx.setLineDash([trackWidth * 0.9, trackWidth * 0.85])
-  ctx.beginPath()
-  ctx.arc(cx, cy, trackRadius, GAUGE_START_ANGLE, needleAngle)
-  ctx.stroke()
-  ctx.setLineDash([])
-  ctx.restore()
-
-  // Hollow tip marker sitting on the ring at the current value, in place of a center needle.
+  // Hollow tip marker sitting on the tick ring at the current value, in place of a center needle.
   ctx.save()
   ctx.strokeStyle = style.color
-  ctx.lineWidth = Math.max(1.5, radius * 0.035)
+  ctx.lineWidth = Math.max(1.5, radius * 0.03)
+  const tipRadius = radius * 0.94
   ctx.beginPath()
-  ctx.arc(cx + Math.cos(needleAngle) * trackRadius, cy + Math.sin(needleAngle) * trackRadius, trackWidth * 0.62, 0, Math.PI * 2)
+  ctx.arc(cx + Math.cos(needleAngle) * tipRadius, cy + Math.sin(needleAngle) * tipRadius, radius * 0.045, 0, Math.PI * 2)
   ctx.stroke()
   ctx.restore()
 
@@ -160,9 +166,9 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.font = `600 ${Math.round(radius * 0.16)}px ${SPEED_FONT_STACK}`
-  for (let i = 0; i <= TICK_COUNT; i++) {
-    const angle = GAUGE_START_ANGLE + (i / TICK_COUNT) * GAUGE_SWEEP
-    const tickValue = style.min + (i / TICK_COUNT) * span
+  for (let i = 0; i * MINOR_SUBDIVISIONS <= tickCount; i++) {
+    const tickValue = style.min + i * majorStep
+    const angle = GAUGE_START_ANGLE + ((tickValue - style.min) / span) * GAUGE_SWEEP
     const labelRadius = radius * 1.2
     drawOutlinedText(
       ctx,
