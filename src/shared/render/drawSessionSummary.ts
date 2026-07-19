@@ -36,10 +36,12 @@ export const DEFAULT_SESSION_SUMMARY_STYLE: SessionSummaryStyle = {
   cornerRadius: 16
 }
 
-/** Everything the summary card shows, all resolved "as of `cts`" by the caller (never the whole
- *  session's true totals) -- since the card can in principle be scrubbed to in the editor before
- *  the actual session end, this keeps it consistent with the "never leak future data" discipline
- *  every other lap/sector widget already follows, rather than a special-cased exception. */
+/** Everything the summary card shows, resolved ONCE against the (trimmed) session's true final
+ *  totals -- NOT "as of the live playback position" like every other lap/sector widget. This is an
+ *  outro recap, not a live readout: the numbers should hold still through the whole reveal window
+ *  instead of visibly ticking (distance/duration climbing, top speed jumping) as the video plays
+ *  through its own final seconds. Only the reveal *animation* (fade/slide-in) is still driven by the
+ *  live `cts` in DrawSessionSummaryOptions -- the data itself is a session-level constant. */
 export interface SessionSummaryData {
   totalLaps: number
   bestLapMs: number | null
@@ -48,7 +50,7 @@ export interface SessionSummaryData {
   bestS3Ms: number | null
   topSpeedMps: number
   totalDistanceM: number
-  /** Elapsed ms from the start of the (trimmed) session up to `cts`. */
+  /** Total duration of the (trimmed) session, start to end -- not "up to the live cts". */
   elapsedMs: number
 }
 

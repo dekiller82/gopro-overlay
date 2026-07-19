@@ -23,9 +23,12 @@ export async function createFrameRenderer(
   widgets: WidgetInstance[],
   sampler: TelemetrySampler,
   startFinish: LatLon | null,
-  /** Absolute cts (same space as sampleCts) at which the trimmed session ends -- only needed for
-   *  the Session Summary widget's showLastSeconds countdown. */
-  trimEndMs: number
+  /** Absolute cts (same space as sampleCts) at which the trimmed session ends -- used for the
+   *  Session Summary widget's showLastSeconds countdown AND (with trimStartMs) its final totals. */
+  trimEndMs: number,
+  /** Absolute cts at which the trimmed session starts -- only needed for the Session Summary
+   *  widget's total-duration figure (trimEndMs - trimStartMs). */
+  trimStartMs: number
 ): Promise<(sampleCts: number, elapsedMs: number) => Buffer> {
   registerExportFonts()
 
@@ -43,6 +46,22 @@ export async function createFrameRenderer(
   // frame's own sampleCts before drawing (below), or every frame (even ones during lap 1) would show
   // every lap in the whole session at once, same discipline as lapState/sectorState/deltaState.
   const allLapSpeedTraces = crossings ? computeLapSpeedTraces(sampler.samples, crossings) : []
+  // Session Summary is an outro RECAP, not a live readout -- unlike lapState/sectorState per frame
+  // below (which DO need to reflect that frame's own sampleCts), its data is the session's true
+  // final totals, resolved once here rather than recomputed (and drifting) on every frame.
+  const finalLapState = crossings ? getLapStateAt(crossings, trimEndMs) : null
+  const finalSectorState = sectorBoundaries ? getSectorStateAt(sectorBoundaries, trimEndMs) : null
+  const finalSessionStats = sampler.sessionStatsAt(trimEndMs)
+  const sessionSummaryData = {
+    totalLaps: finalLapState?.history.length ?? 0,
+    bestLapMs: finalLapState?.bestLapMs ?? null,
+    bestS1Ms: finalSectorState?.bestS1Ms ?? null,
+    bestS2Ms: finalSectorState?.bestS2Ms ?? null,
+    bestS3Ms: finalSectorState?.bestS3Ms ?? null,
+    topSpeedMps: finalSessionStats.maxSpeedMps,
+    totalDistanceM: finalSessionStats.totalDistanceM,
+    elapsedMs: Math.max(0, trimEndMs - trimStartMs)
+  }
   const headerImageByWidgetId = new Map<string, Image>()
   // Apex detection thresholds are per-widget style (not shared like lap/sector/delta state), so
   // precomputed once per widget instance here rather than once globally.
@@ -108,20 +127,6 @@ export async function createFrameRenderer(
     // GPS Track's optional "ghost" marker -- shared across every gpsTrack widget instance, same as
     // deltaState itself, resolved once per frame rather than per widget.
     const ghostPosition = deltaState?.ghostCts != null ? sampler.positionAt(deltaState.ghostCts) : null
-    // Session Summary widget's data -- shared across every instance, same reasoning as
-    // WidgetLayer.tsx's live-preview path. `elapsedMs` (trim-relative, see the comment above) is
-    // exactly the "elapsed since trimmed session start" value this needs, already computed by the caller.
-    const sessionStats = sampler.sessionStatsAt(sampleCts)
-    const sessionSummaryData = {
-      totalLaps: lapState?.history.length ?? 0,
-      bestLapMs: lapState?.bestLapMs ?? null,
-      bestS1Ms: sectorState?.bestS1Ms ?? null,
-      bestS2Ms: sectorState?.bestS2Ms ?? null,
-      bestS3Ms: sectorState?.bestS3Ms ?? null,
-      topSpeedMps: sessionStats.maxSpeedMps,
-      totalDistanceM: sessionStats.totalDistanceM,
-      elapsedMs
-    }
     const currentLapSpeedTrace = crossings ? computeCurrentLapSpeedTrace(sampler.samples, crossings, sampleCts) : null
     const lapSpeedTraces = crossings ? allLapSpeedTraces.filter((t) => crossings[t.lapNumber] <= sampleCts) : []
 

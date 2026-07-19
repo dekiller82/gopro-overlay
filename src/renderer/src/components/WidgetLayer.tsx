@@ -80,24 +80,31 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
     () => (sampler && crossings ? computeCurrentLapSpeedTrace(sampler.samples, crossings, currentTimeMs) : null),
     [sampler, crossings, currentTimeMs]
   )
-  // Session Summary widget's data -- shared across every instance (unit/color choices are read from
-  // each widget's own style at draw time, not baked in here), resolved "as of currentTimeMs" like
-  // everything else on this screen rather than the session's true final totals, so scrubbing to
-  // wherever the card happens to be visible never shows stats from later than that point.
+  // Session Summary is an outro RECAP, not a live readout -- unlike lapState/sectorState above (used
+  // by Timer/SectorTimer/etc, which do need to reflect wherever the video is currently scrubbed to),
+  // its data is resolved against the (trimmed) session's true final totals so the numbers hold still
+  // through the whole reveal window instead of visibly climbing as the video plays through its own
+  // last few seconds. Only depends on trimStartMs/trimEndMs/crossings/sectorBoundaries, so this is
+  // effectively a session-level constant, not something recomputed on every playback frame.
+  const finalLapState = useMemo(() => (crossings ? getLapStateAt(crossings, trimEndMs) : null), [crossings, trimEndMs])
+  const finalSectorState = useMemo(
+    () => (sectorBoundaries ? getSectorStateAt(sectorBoundaries, trimEndMs) : null),
+    [sectorBoundaries, trimEndMs]
+  )
   const sessionSummaryData: SessionSummaryData | null = useMemo(() => {
     if (!sampler) return null
-    const stats = sampler.sessionStatsAt(currentTimeMs)
+    const stats = sampler.sessionStatsAt(trimEndMs)
     return {
-      totalLaps: lapState?.history.length ?? 0,
-      bestLapMs: lapState?.bestLapMs ?? null,
-      bestS1Ms: sectorState?.bestS1Ms ?? null,
-      bestS2Ms: sectorState?.bestS2Ms ?? null,
-      bestS3Ms: sectorState?.bestS3Ms ?? null,
+      totalLaps: finalLapState?.history.length ?? 0,
+      bestLapMs: finalLapState?.bestLapMs ?? null,
+      bestS1Ms: finalSectorState?.bestS1Ms ?? null,
+      bestS2Ms: finalSectorState?.bestS2Ms ?? null,
+      bestS3Ms: finalSectorState?.bestS3Ms ?? null,
       topSpeedMps: stats.maxSpeedMps,
       totalDistanceM: stats.totalDistanceM,
-      elapsedMs: Math.max(0, currentTimeMs - trimStartMs)
+      elapsedMs: Math.max(0, trimEndMs - trimStartMs)
     }
-  }, [sampler, lapState, sectorState, currentTimeMs, trimStartMs])
+  }, [sampler, finalLapState, finalSectorState, trimEndMs, trimStartMs])
 
   if (!sampler || frameWidth <= 0 || frameHeight <= 0) return null
 
