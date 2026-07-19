@@ -23,11 +23,20 @@ speedometer widgets running together over real footage.
 - **Multi-clip import** — select every part of a chapter-split GoPro recording
   (`GH010230.MP4`, `GH020230.MP4`, ...) at once; they're stitched into a single timeline with
   continuous telemetry.
-- **12 telemetry widgets**, each fully configurable (colors, fonts, size, smoothing) via the
-  property panel — see [Widgets](#widgets) below for what each one shows and its own options.
+- **14 widgets** (13 telemetry-driven, plus a freeform text/logo widget), each fully configurable
+  (colors, fonts, size, smoothing) via the property panel — see [Widgets](#widgets) below for what
+  each one shows and its own options.
 - **Lap & sector detection** from a start/finish line you place on the GPS track — everything
-  (timer, sector timer, delta time, predictive lap timer, speed graph, session summary) derives
-  from it automatically.
+  (timer, sector timer, delta time, predictive lap timer, speed graph, session summary, lap
+  consistency) derives from it automatically.
+- **Timeline lap navigation** — a "Jump to fastest lap" button, a clickable marker for every
+  detected lap on the scrub bar (hover for the lap number and time), and a speed sparkline strip
+  under the timeline so you can spot braking zones/corners without scrubbing blind.
+- **Whole-layout color themes** — recolor every widget currently on the frame in one click from a
+  small set of built-in palettes; only touches color fields, never position/size, and leaves
+  semantic colors (faster/slower, braking/accelerating) alone.
+- **Widget lock** — pin a widget's position/size so it can't be accidentally dragged or resized
+  while working on neighbors, still editable in the property panel.
 - **Multi-select** — shift-click widgets (on the canvas or in the widget list) to build a
   selection; drag any member to move the whole group together, and align/center/delete/arrow-key
   nudge all apply to the whole selection at once.
@@ -37,10 +46,15 @@ speedometer widgets running together over real footage.
   final export exactly.
 - **Undo/redo** for every widget edit, saveable/re-applicable widget layout presets, and autosave
   with crash recovery.
+- **Export just your fastest lap** as its own short clip, with configurable padding (seconds
+  before/after) — doesn't touch your project's actual saved trim range.
 - **Recent Projects** list on the start screen for one-click reopening of your last 10
   opened/saved projects.
 - **Project files** (`.gpo`) save the full editing state (imported clips, widgets, trim, start/finish
   line) so you can come back and keep editing.
+- **In-app "What's New" viewer** and an **update notification** — the changelog shows automatically
+  once per new version (reopenable anytime from the toolbar), and a dismissible banner appears if a
+  newer release is available on GitHub.
 - **GPU-accelerated export** — automatically detects and smoke-tests a working hardware encoder
   (NVIDIA NVENC, Intel Quick Sync, AMD AMF) before trusting it, falling back to CPU (libx264) if
   none is available or the GPU encoder fails partway through. See [GPU acceleration](#gpu-acceleration)
@@ -110,8 +124,16 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
 
 - **Session summary** — an end-of-session outro card with an eased opening animation, shown for a
   configurable number of seconds before the end of the trim range. Displays lap count, best
-  lap/sector splits, top speed, distance covered, and elapsed time, all as of wherever you're
-  scrubbed to.
+  lap/sector splits, top speed, distance covered, and elapsed time — the session's true final
+  totals throughout the reveal, not a live-ticking readout.
+
+- **Lap consistency** — a bar chart of your most recent completed laps; a taller bar means a
+  relatively faster lap (scaled between the shown laps' own fastest/slowest), fastest lap
+  highlighted in its own color.
+
+- **Custom Text/Logo** — the one widget not derived from telemetry at all: freeform multi-line
+  text (driver name, event title, sponsor watermark) and/or an uploaded image, stacked
+  image-above-text when both are set.
 
 ## Requirements
 
@@ -205,6 +227,12 @@ renderer use identically.
   tilt signal. The widget flags when it's using this fallback.
 - **Widget alignment** (snapping/centering) is relative to the video frame only, not to other
   widgets.
+- **Start/finish crossing timing** is bounded by the GoPro's own GPS accuracy and sample rate —
+  consumer GPS position noise (a few meters) is often comparable to how far you actually move
+  between samples at typical track speeds, so a detected crossing can land within roughly a sample
+  interval (commonly a few video frames) of the real line. This is close to the physical limit of
+  the hardware, not something sub-sample interpolation can safely improve on (tried and reverted —
+  it amplified GPS noise into a worse result than the plain nearest-sample approach).
 - **Importing directly from an SD card (especially over a USB card reader) is noticeably slower
   than importing from a local drive, and is more likely to fall back to generating a preview proxy
   even for an otherwise-supported codec.** GoPro's in-camera MP4s store their index (the `moov` atom)

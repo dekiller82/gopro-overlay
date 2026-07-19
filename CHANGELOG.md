@@ -2,7 +2,7 @@
 
 All notable changes to GoPro Overlay are documented here.
 
-## [Unreleased]
+## [0.1.4] - 2026-07-19
 
 ### Added
 - **GPS Track zoomed window view** — an optional view mode that keeps the current position centered
