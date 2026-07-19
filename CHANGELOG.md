@@ -2,7 +2,17 @@
 
 All notable changes to GoPro Overlay are documented here.
 
-## [0.1.3]
+## [Unreleased]
+
+### Fixed
+- **Fixed a real memory leak that could crash the app with an out-of-memory error during a long
+  editing session.** The cache backing widget header-logo images had no size limit at all — every
+  distinct image ever tried as a header logo (including ones since replaced, or reverted via undo)
+  stayed decoded in memory for the rest of the session, uncompressed. Also capped the undo/redo
+  history, which had no limit either (every widget click, not just style edits, records a history
+  point).
+
+## [0.1.3] - 2026-07-19
 
 ### Added
 - **Session Summary widget** — an end-of-session outro card with an eased opening animation,

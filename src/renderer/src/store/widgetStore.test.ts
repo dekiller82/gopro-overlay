@@ -208,3 +208,35 @@ describe('widgetStore multi-select', () => {
     expect(useWidgetStore.getState().selectedIds).toEqual([a])
   })
 })
+
+// Regression test for a real, confirmed memory leak: undo history used to grow completely
+// unbounded for the entire lifetime of the editor -- every widget click (even just selecting one,
+// via bringToFront) records a history point, so a long real editing session accumulates history
+// entries far faster than deliberate style edits alone would suggest. A real crash.log OOM report
+// (two separate crashes ~10 minutes apart in the same session) pointed here alongside the
+// useLoadedImage cache leak.
+describe('widgetStore undo history cap', () => {
+  it('never grows past a fixed cap, no matter how many edits are made', () => {
+    vi.useFakeTimers()
+    useWidgetStore.getState().addWidget('timer')
+    vi.advanceTimersByTime(600)
+    const id = useWidgetStore.getState().widgets[0].id
+
+    // Each of these is its own separate burst (well past BURST_QUIET_MS apart), so each one would
+    // normally add its own entry to the undo history.
+    for (let i = 0; i < 500; i++) {
+      useWidgetStore.getState().updateWidget(id, { rotation: i })
+      vi.advanceTimersByTime(600)
+    }
+
+    // Undo repeatedly and count how many real steps exist -- if the cap works, this stops well
+    // short of 500 (the cap, not the edit count, bounds how far back undo can go).
+    let undoSteps = 0
+    while (useWidgetStore.getState().canUndo && undoSteps <= 500) {
+      useWidgetStore.getState().undo()
+      undoSteps++
+    }
+    expect(undoSteps).toBeLessThan(500)
+    expect(undoSteps).toBeLessThanOrEqual(200)
+  })
+})

@@ -46,6 +46,12 @@ let future: WidgetInstance[][] = []
 const BURST_QUIET_MS = 500
 let burstActive = false
 let burstTimer: ReturnType<typeof setTimeout> | null = null
+// Every widget selection (a plain click, even without dragging) calls bringToFront, which is a
+// mutation just like any style edit -- so a long, actively-edited session accumulates a history
+// entry roughly every time the user clicks a different widget, not just on deliberate style
+// changes. Left uncapped, `past` grew for the entire lifetime of the editor with no ceiling at
+// all; capped here so total memory for the undo stack stays bounded regardless of session length.
+const MAX_UNDO_HISTORY = 200
 
 /** Call from every mutating action BEFORE applying its change. Pushes the pre-mutation snapshot
  *  onto the undo stack only if this is the first mutation of a new burst, and always invalidates
@@ -54,6 +60,7 @@ let burstTimer: ReturnType<typeof setTimeout> | null = null
 function recordHistoryPoint(currentWidgets: WidgetInstance[]): void {
   if (!burstActive) {
     past = [...past, currentWidgets]
+    if (past.length > MAX_UNDO_HISTORY) past = past.slice(past.length - MAX_UNDO_HISTORY)
     future = []
     burstActive = true
   }
@@ -177,6 +184,7 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
     const next = future[future.length - 1]
     future = future.slice(0, -1)
     past = [...past, get().widgets]
+    if (past.length > MAX_UNDO_HISTORY) past = past.slice(past.length - MAX_UNDO_HISTORY)
     set({ widgets: next, canUndo: true, canRedo: future.length > 0 })
   }
 }))
