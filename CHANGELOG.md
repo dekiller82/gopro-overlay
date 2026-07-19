@@ -37,6 +37,12 @@ All notable changes to GoPro Overlay are documented here.
   at all.
 
 ### Fixed
+- **More accurate start/finish crossing times** — previously snapped to whichever raw GPS sample
+  happened to be nearest the line, quantizing lap splits to the GPS sample rate. Now refined to
+  sub-sample precision, so lap times aren't shifted by GPS timing alone.
+- **Session Summary no longer visibly updates while it's on screen** — its stats (distance,
+  duration, top speed, avg speed) previously ticked upward for the whole reveal window instead of
+  reading as a settled recap; it now shows the session's true final totals throughout.
 - **Fixed a real memory leak that could crash the app with an out-of-memory error during a long
   editing session.** The cache backing widget header-logo images had no size limit at all — every
   distinct image ever tried as a header logo (including ones since replaced, or reverted via undo)
