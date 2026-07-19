@@ -47,6 +47,9 @@ export async function createFrameRenderer(
   // Apex detection thresholds are per-widget style (not shared like lap/sector/delta state), so
   // precomputed once per widget instance here rather than once globally.
   const apexEventsByWidgetId = new Map<string, ApexEvent[]>()
+  // GPS Track's own apex markers -- projected positions (not just times), independent of any
+  // frame's sampleCts, so resolved once here rather than per frame.
+  const apexPositionsByWidgetId = new Map<string, { x: number; y: number }[]>()
   // colorMode 'speed'/'braking' segments are static for the whole export (only the dot moves), so
   // built once here rather than re-stroked from scratch on every one of potentially thousands of
   // exported frames -- same reasoning as WidgetCanvas.tsx's live-preview cache.
@@ -62,6 +65,10 @@ export async function createFrameRenderer(
     }
     if (widget.type === 'apexSpeedCallout') {
       apexEventsByWidgetId.set(widget.id, detectApexEvents(sampler.samples, widget.style.minDropMps, widget.style.minGapMs))
+    }
+    if (widget.type === 'gpsTrack' && widget.style.showApexMarkers) {
+      const events = detectApexEvents(sampler.samples, widget.style.apexMinDropMps, widget.style.apexMinGapMs)
+      apexPositionsByWidgetId.set(widget.id, events.map((e) => sampler.positionAt(e.cts)))
     }
     if (widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid' && widget.style.viewMode !== 'window') {
       const rect: Rect = { x: widget.x * width, y: widget.y * height, w: widget.w * width, h: widget.h * height }
@@ -152,6 +159,7 @@ export async function createFrameRenderer(
         sectorState,
         deltaState,
         ghostPosition,
+        apexPositions: apexPositionsByWidgetId.get(widget.id),
         sessionSummaryData,
         sessionEndMs: trimEndMs,
         apexEvents: apexEventsByWidgetId.get(widget.id) ?? [],

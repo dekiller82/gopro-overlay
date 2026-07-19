@@ -9,6 +9,23 @@ All notable changes to GoPro Overlay are documented here.
   and zoomed in to an adjustable radius, instead of always fitting the whole track to the widget.
   Makes a close gap to the ghost marker actually visible instead of a fraction of a pixel on the
   full track's own scale.
+- **Apex markers on the GPS Track widget** — plots a marker at each detected corner apex directly on
+  the track outline, with its own detection sensitivity, independent of the Apex Speed Callout
+  widget's own settings.
+- **Lap Consistency widget** — a bar chart of your most recent completed laps, taller bar means a
+  relatively faster lap, fastest lap highlighted in its own color.
+- **Widget lock** — pin a widget's position/size so it can't be accidentally dragged or resized on
+  the canvas (still editable in the property panel), skipped by group drag/nudge too.
+- **Color themes** — recolor every widget currently on the frame in one click from a small set of
+  built-in palettes; only touches color fields (text/accent/background), never position/size, and
+  leaves semantic colors (faster/slower, braking/accelerating) alone.
+- **"Jump to fastest lap" button** and a **speed sparkline strip** under the timeline scrub bar —
+  jump straight to your best lap, or click anywhere on the speed-over-time strip to seek there
+  instead of scrubbing blind to find braking zones/corners.
+- **Export just your fastest lap** as its own short clip, with configurable padding (seconds before
+  and after) — doesn't touch your project's actual saved trim range.
+- **In-app "What's New" viewer** — shows the changelog automatically once per new version, plus a
+  toolbar button to reopen it anytime.
 
 ### Fixed
 - **Fixed a real memory leak that could crash the app with an out-of-memory error during a long

@@ -1,6 +1,8 @@
-import { RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatTime } from '@shared/format'
 import { clipIndexAtGlobalMs } from '@shared/timeline/clipTiming'
+import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
+import type { TelemetrySampler } from '@shared/telemetry/sampleAt'
 import { useProjectStore } from '../store/projectStore'
 import { useWidgetStore } from '../store/widgetStore'
 import type { PlayerApi } from './VideoPlayer'
@@ -8,6 +10,7 @@ import type { PlayerApi } from './VideoPlayer'
 interface Props {
   videoRef: RefObject<HTMLVideoElement | null>
   playerApiRef: RefObject<PlayerApi | null>
+  sampler: TelemetrySampler | null
 }
 
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
@@ -17,14 +20,28 @@ const MIN_TRIM_GAP_MS = 200
 
 type DragMode = 'playhead' | 'trimStart' | 'trimEnd' | null
 
-function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
+function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element | null {
   const imported = useProjectStore((s) => s.imported)
   const currentTimeMs = useProjectStore((s) => s.currentTimeMs)
   const isPlaying = useProjectStore((s) => s.isPlaying)
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   const setTrim = useProjectStore((s) => s.setTrim)
+  const startFinish = useProjectStore((s) => s.startFinish)
   const widgetSelectedIds = useWidgetStore((s) => s.selectedIds)
+
+  // The session's single fastest completed lap, for the "Jump to fastest lap" button -- recomputed
+  // only when the telemetry/start-finish point actually change, not per frame.
+  const fastestLap = useMemo(() => {
+    if (!sampler || !startFinish) return null
+    const crossings = detectLapCrossings(sampler.samples, startFinish)
+    return fastestLapRange(crossings)
+  }, [sampler, startFinish])
+
+  const jumpToFastestLap = useCallback(() => {
+    if (!fastestLap) return
+    playerApiRef.current?.seekToGlobalMs(fastestLap.startCts)
+  }, [fastestLap, playerApiRef])
 
   const trackRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<DragMode>(null)
@@ -63,6 +80,78 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
       setDragging(which)
     }
   }, [])
+
+  // Speed sparkline strip -- lets you spot braking zones/corners at a glance instead of scrubbing
+  // blind. Downsampled to a fixed point count (independent of session length) since it only needs to
+  // look right, not be sample-accurate; recomputed only when the telemetry itself changes, not per
+  // frame.
+  const SPARKLINE_POINTS = 400
+  const speedCurve = useMemo(() => {
+    if (!sampler || totalDurationMs <= 0) return null
+    const points = new Array<number>(SPARKLINE_POINTS)
+    for (let i = 0; i < SPARKLINE_POINTS; i++) {
+      points[i] = sampler.speedAt((i / (SPARKLINE_POINTS - 1)) * totalDurationMs, 300)
+    }
+    return points
+  }, [sampler, totalDurationMs])
+
+  const sparklineRef = useRef<HTMLDivElement>(null)
+  const sparklineCanvasRef = useRef<HTMLCanvasElement>(null)
+
+  const drawSparkline = useCallback(() => {
+    const canvas = sparklineCanvasRef.current
+    if (!canvas || !speedCurve) return
+    const cssWidth = canvas.clientWidth
+    const cssHeight = canvas.clientHeight
+    if (cssWidth === 0 || cssHeight === 0) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    canvas.width = Math.round(cssWidth * dpr)
+    canvas.height = Math.round(cssHeight * dpr)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, cssWidth, cssHeight)
+
+    const maxSpeed = Math.max(1, ...speedCurve)
+    const padding = 2
+    const usableHeight = cssHeight - padding * 2
+
+    ctx.beginPath()
+    speedCurve.forEach((speed, i) => {
+      const x = (i / (speedCurve.length - 1)) * cssWidth
+      const y = padding + usableHeight - (speed / maxSpeed) * usableHeight
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)'
+    ctx.lineWidth = 1.5
+    ctx.lineJoin = 'round'
+    ctx.stroke()
+
+    ctx.lineTo(cssWidth, cssHeight)
+    ctx.lineTo(0, cssHeight)
+    ctx.closePath()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
+    ctx.fill()
+  }, [speedCurve])
+
+  useEffect(() => {
+    drawSparkline()
+    window.addEventListener('resize', drawSparkline)
+    return () => window.removeEventListener('resize', drawSparkline)
+  }, [drawSparkline])
+
+  const handleSparklineMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!imported) return
+      e.preventDefault()
+      const rect = sparklineRef.current?.getBoundingClientRect()
+      const ratio = rect && rect.width > 0 ? Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) : 0
+      setDragging('playhead')
+      seekToRatio(ratio)
+    },
+    [imported, seekToRatio]
+  )
 
   useEffect(() => {
     if (!dragging) return
@@ -177,6 +266,7 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
   const trimEndPct = totalDurationMs ? Math.min(100, (trimEndMs / totalDurationMs) * 100) : 100
 
   return (
+    <div className="timeline-wrapper">
     <div className="timeline">
       <button
         className="timeline__step"
@@ -198,6 +288,18 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
         ⏭
       </button>
       <span className="timeline__time">{formatTime(currentTimeMs, true)}</span>
+      <button
+        className="timeline__fastest-lap"
+        onClick={jumpToFastestLap}
+        disabled={!fastestLap}
+        title={
+          fastestLap
+            ? `Jump to your fastest lap (Lap ${fastestLap.lapNumber}, ${formatTime(fastestLap.timeMs, true)})`
+            : 'No completed lap yet -- set a start/finish line and complete at least one lap'
+        }
+      >
+        🏁 Fastest lap
+      </button>
       <div className="timeline__track" ref={trackRef} onMouseDown={handlePlayheadMouseDown}>
         <div className="timeline__fill" style={{ width: `${pct}%` }} />
         {trimStartPct > 0 && <div className="timeline__trim-mask timeline__trim-mask--start" style={{ width: `${trimStartPct}%` }} />}
@@ -223,6 +325,15 @@ function Timeline({ videoRef, playerApiRef }: Props): React.JSX.Element | null {
         />
       </div>
       <span className="timeline__time timeline__time--dim">{formatTime(totalDurationMs, true)}</span>
+    </div>
+    {speedCurve && (
+      <div className="timeline-sparkline" ref={sparklineRef} onMouseDown={handleSparklineMouseDown} title="Speed over time -- click to jump there">
+        <canvas className="timeline-sparkline__canvas" ref={sparklineCanvasRef} />
+        {trimStartPct > 0 && <div className="timeline__trim-mask timeline__trim-mask--start" style={{ width: `${trimStartPct}%` }} />}
+        {trimEndPct < 100 && <div className="timeline__trim-mask timeline__trim-mask--end" style={{ left: `${trimEndPct}%` }} />}
+        <div className="timeline-sparkline__playhead" style={{ left: `${pct}%` }} />
+      </div>
+    )}
     </div>
   )
 }

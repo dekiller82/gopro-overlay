@@ -23,6 +23,8 @@ interface Api {
   saveAutosave: (payload: ProjectPayload) => Promise<void>
   loadAutosave: () => Promise<ProjectPayload | null>
   clearAutosave: () => Promise<void>
+  getAppVersion: () => Promise<string>
+  getChangelog: () => Promise<string>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
   onImportProgress: (callback: (progress: ImportProgress) => void) => () => void
   onPreviewProxyProgress: (callback: (progress: { fraction: number }) => void) => () => void

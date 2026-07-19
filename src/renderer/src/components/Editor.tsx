@@ -107,7 +107,7 @@ function Editor(): React.JSX.Element {
             />
           </ErrorBoundary>
         </div>
-        <Timeline videoRef={videoRef} playerApiRef={playerApiRef} />
+        <Timeline videoRef={videoRef} playerApiRef={playerApiRef} sampler={sampler} />
         {imported && (
           <div className="editor__meta">
             {imported.clips.length > 1 ? `${imported.clips.length} clips` : imported.clips[0].video.fileName} ·{' '}

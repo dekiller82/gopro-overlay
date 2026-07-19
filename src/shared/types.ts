@@ -90,6 +90,9 @@ export interface WidgetTransform {
   /** Degrees */
   rotation: number
   zIndex: number
+  /** When true, blocks drag/resize (and multi-select group-move) for this widget -- for pinning
+   *  placement once it's dialed in without it accidentally moving while working on neighbors. */
+  locked: boolean
 }
 
 export interface GpsTrackWidgetInstance extends WidgetTransform {
@@ -164,6 +167,12 @@ export interface SessionSummaryWidgetInstance extends WidgetTransform {
   style: import('./render/drawSessionSummary').SessionSummaryStyle
 }
 
+export interface LapConsistencyWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'lapConsistency'
+  style: import('./render/drawLapConsistency').LapConsistencyStyle
+}
+
 export type WidgetInstance =
   | GpsTrackWidgetInstance
   | SpeedometerAnalogWidgetInstance
@@ -177,6 +186,7 @@ export type WidgetInstance =
   | GForceDiagramWidgetInstance
   | RollAngleWidgetInstance
   | SessionSummaryWidgetInstance
+  | LapConsistencyWidgetInstance
 
 export interface ProjectPayload {
   imported: ImportResult

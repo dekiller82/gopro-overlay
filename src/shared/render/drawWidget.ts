@@ -19,6 +19,7 @@ import { drawSpeedDistanceGraph } from './drawSpeedDistanceGraph'
 import { drawGForceDiagram } from './drawGForceDiagram'
 import { drawRollAngle } from './drawRollAngle'
 import { drawSessionSummary, type SessionSummaryData } from './drawSessionSummary'
+import { drawLapConsistency } from './drawLapConsistency'
 
 export interface WidgetDrawContext {
   trackPoints: ProjectedPoint[]
@@ -53,6 +54,9 @@ export interface WidgetDrawContext {
    *  drawGpsWidget's own doc comment for why this is resolved at the baseline lap's matching
    *  elapsed time, not distance. Resolved by the caller via sampler.positionAt(deltaState.ghostCts). */
   ghostPosition?: ProjectedPoint | null
+  /** Only relevant for a 'gpsTrack' widget with style.showApexMarkers -- one projected position per
+   *  detected apex (see apexEvents), resolved by the caller via sampler.positionAt(event.cts). */
+  apexPositions?: ProjectedPoint[]
   /** Only relevant for a 'speedDistanceGraph' widget -- completed-lap traces are shared/precomputed
    *  once (don't depend on cts); the current-lap trace is resolved fresh every frame. */
   lapSpeedTraces?: LapSpeedTrace[]
@@ -83,7 +87,8 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         trackCts: data.trackCts,
         speedBounds: data.speedBounds,
         coloredTrackImage: data.coloredTrackImage,
-        ghostPosition: data.ghostPosition
+        ghostPosition: data.ghostPosition,
+        apexPositions: data.apexPositions
       })
       return
     case 'speedometerAnalog':
@@ -149,6 +154,9 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         cts: data.cts,
         sessionEndMs: data.sessionEndMs
       })
+      return
+    case 'lapConsistency':
+      drawLapConsistency(ctx, { rect, style: widget.style, lapState: data.lapState ?? null })
       return
   }
 }

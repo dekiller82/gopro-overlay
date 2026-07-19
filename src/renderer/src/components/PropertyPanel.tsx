@@ -13,6 +13,8 @@ import { DEFAULT_SPEED_DISTANCE_GRAPH_STYLE, type SpeedDistanceGraphStyle } from
 import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '@shared/render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '@shared/render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '@shared/render/drawSessionSummary'
+import { DEFAULT_LAP_CONSISTENCY_STYLE } from '@shared/render/drawLapConsistency'
+import { applyThemeToWidget, LAYOUT_THEMES, type LayoutTheme } from '@shared/widgets/themes'
 import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
 import { useWidgetStore } from '../store/widgetStore'
@@ -59,6 +61,8 @@ function widgetLabel(type: WidgetInstance['type']): string {
       return 'Roll/Lean Angle'
     case 'sessionSummary':
       return 'Session Summary'
+    case 'lapConsistency':
+      return 'Lap Consistency'
   }
 }
 
@@ -204,6 +208,12 @@ function PropertyPanel(): React.JSX.Element {
     applyWidgets(preset.widgets)
   }
 
+  // Recolors every currently-placed widget in one undoable step -- unlike a layout preset (which
+  // only saves position/size), this only touches color fields, leaving placement untouched.
+  function applyTheme(theme: LayoutTheme): void {
+    applyWidgets(widgets.map((w) => applyThemeToWidget(w, theme)))
+  }
+
   function deleteLayout(id: string): void {
     window.api.deleteLayoutPreset(id).then(setLayoutPresets)
   }
@@ -228,6 +238,13 @@ function PropertyPanel(): React.JSX.Element {
         y: alignedY(w.h, 'centerV', paddingFraction)
       })
     }
+  }
+
+  const allTargetsLocked = targetWidgets.length > 0 && targetWidgets.every((w) => w.locked)
+
+  function toggleLocked(): void {
+    const nextLocked = !allTargetsLocked
+    for (const w of targetWidgets) updateWidget(w.id, { locked: nextLocked })
   }
 
   function setGlobalStartFinishHere(): void {
@@ -304,6 +321,9 @@ function PropertyPanel(): React.JSX.Element {
           <button className="property-panel__add" onClick={() => addWidget('sessionSummary')}>
             + Session Summary
           </button>
+          <button className="property-panel__add" onClick={() => addWidget('lapConsistency')}>
+            + Lap Consistency
+          </button>
         </div>
         <ul className="widget-list">
           {widgets.length === 0 && <li className="widget-list__empty">No widgets yet</li>}
@@ -314,6 +334,11 @@ function PropertyPanel(): React.JSX.Element {
               title="Click to select, shift-click to add/remove from selection"
               onClick={(e) => selectWidget(w.id, e.shiftKey)}
             >
+              {w.locked && (
+                <span className="widget-list__lock-icon" title="Locked">
+                  🔒
+                </span>
+              )}
               {widgetLabel(w.type)}
             </li>
           ))}
@@ -371,6 +396,37 @@ function PropertyPanel(): React.JSX.Element {
                   ×
                 </button>
               </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="property-panel__section">
+        <div className="property-panel__header">
+          <span>Color themes</span>
+        </div>
+        <span className="field__hint">
+          Recolors every widget currently on the frame in one click -- only color fields (text, accent,
+          background), never position/size. Semantic colors (faster/slower, braking/accelerating) are left
+          alone. One undo step.
+        </span>
+        <ul className="widget-list">
+          {LAYOUT_THEMES.map((theme) => (
+            <li key={theme.name} className="widget-list__item layout-preset-row theme-row">
+              <span className="theme-row__swatch" style={{ background: theme.backgroundColor, border: `2px solid ${theme.accent}` }}>
+                <span className="theme-row__swatch-dot" style={{ background: theme.accent }} />
+              </span>
+              <span className="layout-preset-row__name" title={theme.name}>
+                {theme.name}
+              </span>
+              <button
+                className="property-panel__add"
+                onClick={() => applyTheme(theme)}
+                disabled={widgets.length === 0}
+                title={`Apply the ${theme.name} theme to every widget`}
+              >
+                Apply
+              </button>
             </li>
           ))}
         </ul>
@@ -442,6 +498,15 @@ function PropertyPanel(): React.JSX.Element {
             <input type="checkbox" checked={snapEnabled} onChange={(e) => setSnapEnabled(e.target.checked)} />
             <span>Snap to center/edges while dragging</span>
           </label>
+
+          <label className="field field--checkbox">
+            <input type="checkbox" checked={allTargetsLocked} onChange={toggleLocked} />
+            <span>Lock position/size{selectedIds.length > 1 ? ' (all selected)' : ''}</span>
+          </label>
+          <span className="field__hint">
+            A locked widget can't be dragged or resized on the canvas (and is skipped by group drag/nudge) --
+            still editable here in the property panel.
+          </span>
         </div>
       )}
 
@@ -665,6 +730,53 @@ function PropertyPanel(): React.JSX.Element {
               <span className="field__hint">
                 Keeps the current position centered and zoomed in, so a close gap to the ghost marker is
                 actually visible instead of a fraction of a pixel on the full track.
+              </span>
+            </>
+          )}
+
+          <label className="field field--checkbox">
+            <input
+              type="checkbox"
+              checked={style.showApexMarkers}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showApexMarkers: e.target.checked } })}
+            />
+            <span>Show apex markers</span>
+          </label>
+          {style.showApexMarkers && (
+            <>
+              <label className="field">
+                <span>Marker color</span>
+                <input
+                  type="color"
+                  value={style.apexMarkerColor}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, apexMarkerColor: e.target.value } })}
+                />
+              </label>
+              <label className="field">
+                <span>Sensitivity (min speed drop {style.apexMinDropMps.toFixed(1)} m/s)</span>
+                <input
+                  type="range"
+                  min={2}
+                  max={20}
+                  step={0.5}
+                  value={style.apexMinDropMps}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, apexMinDropMps: Number(e.target.value) } })}
+                />
+              </label>
+              <label className="field">
+                <span>Minimum gap between apexes ({(style.apexMinGapMs / 1000).toFixed(1)}s)</span>
+                <input
+                  type="range"
+                  min={500}
+                  max={5000}
+                  step={100}
+                  value={style.apexMinGapMs}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, apexMinGapMs: Number(e.target.value) } })}
+                />
+              </label>
+              <span className="field__hint">
+                Plots a marker at each detected corner apex directly on the track -- independent of the Apex
+                Speed Callout widget's own detection settings, if you're also using that.
               </span>
             </>
           )}
@@ -2236,6 +2348,138 @@ function PropertyPanel(): React.JSX.Element {
           <label className="field">
             <span>Accent color (title)</span>
             <input type="color" value={style.accentColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, accentColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Text outline ({style.textOutlineWidth}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={6}
+              step={1}
+              value={style.textOutlineWidth}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+            />
+          </label>
+
+          {style.textOutlineWidth > 0 && (
+            <label className="field">
+              <span>Outline color</span>
+              <input
+                type="color"
+                value={style.textOutlineColor}
+                onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+              />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'lapConsistency' && (() => {
+        const style = { ...DEFAULT_LAP_CONSISTENCY_STYLE, ...selected.style }
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Lap Consistency style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">
+            A bar per recently-completed lap -- taller bar means a relatively faster lap (scaled between
+            the shown laps' own fastest/slowest, not from zero), fastest lap highlighted in its own color.
+          </span>
+
+          <label className="field">
+            <span>Title</span>
+            <input type="text" value={style.title} onChange={(e) => updateWidget(selected.id, { style: { ...style, title: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Laps shown ({style.maxLapsShown})</span>
+            <input
+              type="range"
+              min={3}
+              max={20}
+              step={1}
+              value={style.maxLapsShown}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, maxLapsShown: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field field--checkbox">
+            <input
+              type="checkbox"
+              checked={style.showLapTimes}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showLapTimes: e.target.checked } })}
+            />
+            <span>Show lap times above bars</span>
+          </label>
+
+          <label className="field">
+            <span>Bar color</span>
+            <input type="color" value={style.barColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, barColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Fastest lap color</span>
+            <input
+              type="color"
+              value={style.bestLapColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, bestLapColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Label color</span>
+            <input type="color" value={style.labelColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, labelColor: e.target.value } })} />
           </label>
 
           <label className="field">

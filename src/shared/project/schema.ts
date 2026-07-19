@@ -6,7 +6,10 @@ const transformFields = {
   w: z.number(),
   h: z.number(),
   rotation: z.number(),
-  zIndex: z.number()
+  zIndex: z.number(),
+  /** When true, blocks drag/resize (and multi-select group-move) for this widget -- for pinning
+   *  placement once it's dialed in without it accidentally moving while working on neighbors. */
+  locked: z.boolean().default(false)
 }
 
 const gpsStyleSchema = z.object({
@@ -28,7 +31,11 @@ const gpsStyleSchema = z.object({
   showGhost: z.boolean().default(false),
   ghostColor: z.string().default('#b026ff'),
   viewMode: z.enum(['full', 'window']).default('full'),
-  windowRadiusM: z.number().default(25)
+  windowRadiusM: z.number().default(25),
+  showApexMarkers: z.boolean().default(false),
+  apexMarkerColor: z.string().default('#ffd60a'),
+  apexMinDropMps: z.number().default(8),
+  apexMinGapMs: z.number().default(1500)
 })
 
 const speedometerStyleSchema = z.object({
@@ -290,6 +297,27 @@ const sessionSummaryWidgetSchema = z.object({
   style: sessionSummaryStyleSchema
 })
 
+const lapConsistencyStyleSchema = z.object({
+  title: z.string(),
+  maxLapsShown: z.number(),
+  barColor: z.string(),
+  bestLapColor: z.string(),
+  labelColor: z.string(),
+  showLapTimes: z.boolean(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number()
+})
+
+const lapConsistencyWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('lapConsistency'),
+  ...transformFields,
+  style: lapConsistencyStyleSchema
+})
+
 export const widgetSchema = z.discriminatedUnion('type', [
   gpsTrackWidgetSchema,
   speedometerAnalogWidgetSchema,
@@ -302,7 +330,8 @@ export const widgetSchema = z.discriminatedUnion('type', [
   speedDistanceGraphWidgetSchema,
   gForceDiagramWidgetSchema,
   rollAngleWidgetSchema,
-  sessionSummaryWidgetSchema
+  sessionSummaryWidgetSchema,
+  lapConsistencyWidgetSchema
 ])
 
 export const videoMetaSchema = z.object({

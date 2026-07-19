@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TelemetrySample } from '../types'
-import { detectLapCrossings, getLapStateAt, lapTimesFromCrossings, nearestLatLon } from './laps'
+import { detectLapCrossings, fastestLapRange, getLapStateAt, lapTimesFromCrossings, nearestLatLon } from './laps'
 // Numbering convention under test: the first crossing (e.g. the moment the user scrubs to the
 // line and marks it) starts Lap 1 immediately -- there's no separate untimed "Lap 0/out-lap"
 // segment before it, so setting the start/finish never appears to "jump to Lap 2" right away.
@@ -77,6 +77,26 @@ describe('lapTimesFromCrossings', () => {
   it('returns an empty array for 0 or 1 crossings', () => {
     expect(lapTimesFromCrossings([])).toEqual([])
     expect(lapTimesFromCrossings([1000])).toEqual([])
+  })
+})
+
+describe('fastestLapRange', () => {
+  it('finds the single fastest completed lap across the whole session, not "as of" any query time', () => {
+    // Laps: 30000, 35000, 30000 (crossings[0,30000,65000,95000]) -- tied fastest at index 0, but
+    // argmin picks the FIRST tie, matching Math.min semantics used elsewhere in this codebase.
+    const crossings = [0, 30000, 65000, 95000]
+    expect(fastestLapRange(crossings)).toEqual({ lapNumber: 1, startCts: 0, endCts: 30000, timeMs: 30000 })
+  })
+
+  it('picks a genuinely faster later lap over an earlier one', () => {
+    // Laps: 30000, 24000 (faster), 36000.
+    const crossings = [0, 30000, 54000, 90000]
+    expect(fastestLapRange(crossings)).toEqual({ lapNumber: 2, startCts: 30000, endCts: 54000, timeMs: 24000 })
+  })
+
+  it('returns null when fewer than one full lap exists', () => {
+    expect(fastestLapRange([])).toBeNull()
+    expect(fastestLapRange([5000])).toBeNull()
   })
 })
 

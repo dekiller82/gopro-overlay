@@ -1,10 +1,11 @@
-import { ipcMain, dialog, BrowserWindow, type OpenDialogOptions } from 'electron'
+import { ipcMain, dialog, BrowserWindow, app, type OpenDialogOptions } from 'electron'
 import { ensurePreviewProxy } from '../video/previewProxy'
 import { probeAndParseClip, buildImportResult, sliceClipTelemetry, type ProbedClip } from '../video/clipImport'
 import { loadProjectFromFile, saveProjectToFile } from '../project/persistence'
 import { listLayoutPresets, saveLayoutPreset, deleteLayoutPreset, defaultLayoutPresetsFilePath } from '../project/layoutPresets'
 import { autosaveProjectPath, hasAutosave, clearAutosave } from '../project/autosave'
 import { listRecentProjects, addRecentProject, removeRecentProject, defaultRecentProjectsFilePath } from '../project/recentProjects'
+import { defaultChangelogPath, readChangelog } from '../app/changelog'
 import { runExport } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
 import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject } from '../../shared/types'
@@ -107,6 +108,9 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('recent:list', async (): Promise<RecentProject[]> => listRecentProjects(defaultRecentProjectsFilePath()))
+
+  ipcMain.handle('app:getVersion', (): string => app.getVersion())
+  ipcMain.handle('app:getChangelog', async (): Promise<string> => readChangelog(defaultChangelogPath()))
 
   ipcMain.handle('export:start', async (event, payload: ProjectPayload): Promise<string | null> => {
     const win = BrowserWindow.getFocusedWindow()

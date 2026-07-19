@@ -56,12 +56,21 @@ function WidgetCanvas({
   // Apex detection thresholds are per-widget style (unlike lap/sector/delta state, which share one
   // global start/finish line across every widget) -- memoized on the specific threshold values (not
   // the whole `widget` object) so dragging/resizing this widget doesn't re-run an O(n) detection
-  // pass on every position update.
-  const minDropMps = widget.type === 'apexSpeedCallout' ? widget.style.minDropMps : null
-  const minGapMs = widget.type === 'apexSpeedCallout' ? widget.style.minGapMs : null
+  // pass on every position update. Both Apex Speed Callout and the GPS Track's own apex markers
+  // reuse this same detection, each with their own threshold fields.
+  const gpsShowApexMarkers = widget.type === 'gpsTrack' && widget.style.showApexMarkers
+  const minDropMps = widget.type === 'apexSpeedCallout' ? widget.style.minDropMps : gpsShowApexMarkers ? widget.style.apexMinDropMps : null
+  const minGapMs = widget.type === 'apexSpeedCallout' ? widget.style.minGapMs : gpsShowApexMarkers ? widget.style.apexMinGapMs : null
   const apexEvents = useMemo(
     () => (minDropMps !== null && minGapMs !== null ? detectApexEvents(sampler.samples, minDropMps, minGapMs) : []),
     [sampler, minDropMps, minGapMs]
+  )
+  // Positions (not just times) for the GPS Track's own apex markers -- projected once here per
+  // widget instance, same as ghostPosition is resolved once per frame in WidgetLayer.tsx, just
+  // per-widget since apex thresholds are per-widget style rather than shared globally.
+  const apexPositions = useMemo(
+    () => (gpsShowApexMarkers ? apexEvents.map((e) => sampler.positionAt(e.cts)) : undefined),
+    [gpsShowApexMarkers, apexEvents, sampler]
   )
 
   // colorMode 'speed'/'braking' segments never change frame-to-frame (only the dot does), so this
@@ -150,6 +159,7 @@ function WidgetCanvas({
       sessionSummaryData: sessionSummaryData ?? undefined,
       sessionEndMs,
       apexEvents,
+      apexPositions,
       headerImage,
       fastestLapIcon,
       trackSpeeds: sampler.trackSpeeds,
@@ -176,6 +186,7 @@ function WidgetCanvas({
     sessionSummaryData,
     sessionEndMs,
     apexEvents,
+    apexPositions,
     headerImage,
     fastestLapIcon,
     coloredTrackImage,

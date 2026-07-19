@@ -153,7 +153,7 @@ function WidgetBox({
 
   const position =
     dragPreview ??
-    (isGroupMember && groupDrag && groupDrag.anchorId !== widget.id
+    (!widget.locked && isGroupMember && groupDrag && groupDrag.anchorId !== widget.id
       ? { x: pixelX + groupDrag.dxPx, y: pixelY + groupDrag.dyPx }
       : { x: pixelX, y: pixelY })
 
@@ -167,7 +167,9 @@ function WidgetBox({
       // actual visible rendering to the frame's exact bounds (see global.css), same as export
       // (Canvas2D naturally clips anything drawn outside the canvas's own pixel bounds).
       style={{ zIndex: widget.zIndex }}
-      className={`widget-box${isSelected ? ' widget-box--selected' : ''}${isPrimarySelection ? ' widget-box--primary' : ''}`}
+      className={`widget-box${isSelected ? ' widget-box--selected' : ''}${isPrimarySelection ? ' widget-box--primary' : ''}${widget.locked ? ' widget-box--locked' : ''}`}
+      disableDragging={widget.locked}
+      enableResizing={!widget.locked}
       // NOT onDragStart -- react-draggable calls onStart from its own onMouseDown, i.e. on every
       // plain click (before any actual movement), not just real drags. wasDraggedRef is instead set
       // from handleDrag, which only fires once the pointer has actually moved.

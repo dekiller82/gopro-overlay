@@ -83,7 +83,8 @@ describe('layoutPresets', () => {
     'speedDistanceGraph',
     'gForceDiagram',
     'rollAngle',
-    'sessionSummary'
+    'sessionSummary',
+    'lapConsistency'
   ]
 
   it('round-trips a layout containing every widget type through save + list', async () => {

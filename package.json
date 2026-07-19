@@ -65,6 +65,7 @@
     "files": [
       "out/**/*",
       "package.json",
+      "CHANGELOG.md",
       "!**/*.map"
     ],
     "asarUnpack": [

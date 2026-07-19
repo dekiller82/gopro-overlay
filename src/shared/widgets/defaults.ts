@@ -10,6 +10,7 @@ import { DEFAULT_SPEED_DISTANCE_GRAPH_STYLE } from '../render/drawSpeedDistanceG
 import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '../render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '../render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '../render/drawSessionSummary'
+import { DEFAULT_LAP_CONSISTENCY_STYLE } from '../render/drawLapConsistency'
 import type {
   GpsTrackWidgetInstance,
   SpeedometerAnalogWidgetInstance,
@@ -23,6 +24,7 @@ import type {
   GForceDiagramWidgetInstance,
   RollAngleWidgetInstance,
   SessionSummaryWidgetInstance,
+  LapConsistencyWidgetInstance,
   WidgetInstance
 } from '../types'
 
@@ -36,6 +38,7 @@ export function createGpsTrackWidget(): GpsTrackWidgetInstance {
     h: 0.34,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_GPS_STYLE }
   }
 }
@@ -50,6 +53,7 @@ export function createSpeedometerAnalogWidget(): SpeedometerAnalogWidgetInstance
     h: 0.22,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_SPEEDOMETER_STYLE }
   }
 }
@@ -64,6 +68,7 @@ export function createSpeedometerDigitalWidget(): SpeedometerDigitalWidgetInstan
     h: 0.1,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_SPEEDOMETER_STYLE }
   }
 }
@@ -81,6 +86,7 @@ export function createTimerWidget(): TimerWidgetInstance {
     h: 0.4,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_TIMER_STYLE }
   }
 }
@@ -95,6 +101,7 @@ export function createSectorTimerWidget(): SectorTimerWidgetInstance {
     h: 0.1,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_SECTOR_TIMER_STYLE }
   }
 }
@@ -109,6 +116,7 @@ export function createDeltaTimeWidget(): DeltaTimeWidgetInstance {
     h: 0.11,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_DELTA_TIME_STYLE }
   }
 }
@@ -123,6 +131,7 @@ export function createPredictiveLapTimerWidget(): PredictiveLapTimerWidgetInstan
     h: 0.14,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_PREDICTIVE_LAP_TIMER_STYLE }
   }
 }
@@ -137,6 +146,7 @@ export function createApexSpeedCalloutWidget(): ApexSpeedCalloutWidgetInstance {
     h: 0.14,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_APEX_SPEED_CALLOUT_STYLE }
   }
 }
@@ -151,6 +161,7 @@ export function createSpeedDistanceGraphWidget(): SpeedDistanceGraphWidgetInstan
     h: 0.26,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_SPEED_DISTANCE_GRAPH_STYLE }
   }
 }
@@ -165,6 +176,7 @@ export function createGForceDiagramWidget(): GForceDiagramWidgetInstance {
     h: 0.3,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_GFORCE_DIAGRAM_STYLE }
   }
 }
@@ -179,6 +191,7 @@ export function createRollAngleWidget(): RollAngleWidgetInstance {
     h: 0.18,
     rotation: 0,
     zIndex: 1,
+    locked: false,
     style: { ...DEFAULT_ROLL_ANGLE_STYLE }
   }
 }
@@ -195,7 +208,23 @@ export function createSessionSummaryWidget(): SessionSummaryWidgetInstance {
     h: 0.7,
     rotation: 0,
     zIndex: 10,
+    locked: false,
     style: { ...DEFAULT_SESSION_SUMMARY_STYLE }
+  }
+}
+
+export function createLapConsistencyWidget(): LapConsistencyWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'lapConsistency',
+    x: 0.04,
+    y: 0.7,
+    w: 0.3,
+    h: 0.22,
+    rotation: 0,
+    zIndex: 1,
+    locked: false,
+    style: { ...DEFAULT_LAP_CONSISTENCY_STYLE }
   }
 }
 
@@ -225,5 +254,7 @@ export function createWidget(type: WidgetInstance['type']): WidgetInstance {
       return createRollAngleWidget()
     case 'sessionSummary':
       return createSessionSummaryWidget()
+    case 'lapConsistency':
+      return createLapConsistencyWidget()
   }
 }

@@ -126,3 +126,31 @@ export function getLapStateAt(crossings: number[], cts: number): LapState {
     history
   }
 }
+
+export interface LapRange {
+  lapNumber: number
+  startCts: number
+  endCts: number
+  timeMs: number
+}
+
+/** The single fastest COMPLETED lap across the whole session (not "as of" any particular query time
+ *  -- unlike getLapStateAt's bestLapMs, this is meant for one-shot actions like "jump to it" or
+ *  "export it", which should always target the session's real best lap regardless of where the
+ *  video happens to be scrubbed to right now). Null if fewer than one full lap exists. */
+export function fastestLapRange(crossings: number[]): LapRange | null {
+  const lapTimes = lapTimesFromCrossings(crossings)
+  if (lapTimes.length === 0) return null
+
+  let bestIndex = 0
+  for (let i = 1; i < lapTimes.length; i++) {
+    if (lapTimes[i] < lapTimes[bestIndex]) bestIndex = i
+  }
+
+  return {
+    lapNumber: bestIndex + 1,
+    startCts: crossings[bestIndex],
+    endCts: crossings[bestIndex + 1],
+    timeMs: lapTimes[bestIndex]
+  }
+}

@@ -137,7 +137,9 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
     const idSet = new Set(ids)
     recordHistoryPoint(get().widgets)
     set((state) => ({
-      widgets: state.widgets.map((w) => (idSet.has(w.id) ? { ...w, x: w.x + dxFrac, y: w.y + dyFrac } : w)),
+      // Locked widgets never move, even when caught up in a group drag/nudge that includes them --
+      // enforced once here rather than in every caller (group drag's anchor, arrow-key nudge, ...).
+      widgets: state.widgets.map((w) => (idSet.has(w.id) && !w.locked ? { ...w, x: w.x + dxFrac, y: w.y + dyFrac } : w)),
       canUndo: true,
       canRedo: false
     }))

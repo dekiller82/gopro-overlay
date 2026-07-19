@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from './components/Editor'
+import WhatsNewModal from './components/WhatsNewModal'
 import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
+import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
+import { formatTime } from '@shared/format'
 import type { ImportProgress, ProjectPayload, RecentProject } from '@shared/types'
+
+const LAST_SEEN_VERSION_KEY = 'gpo-last-seen-version'
 
 const IMPORT_PHASE_LABELS: Record<ImportProgress['phase'], string> = {
   extracting: 'Reading video file',
@@ -52,6 +57,8 @@ function App(): React.JSX.Element {
   const [exportEncoderLabel, setExportEncoderLabel] = useState<string | null>(null)
   const [autosaveAvailable, setAutosaveAvailable] = useState(false)
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
+  const [changelog, setChangelog] = useState('')
+  const [showWhatsNew, setShowWhatsNew] = useState(false)
 
   const refreshRecentProjects = (): void => {
     window.api.listRecentProjects().then(setRecentProjects)
@@ -59,6 +66,20 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     refreshRecentProjects()
+  }, [])
+
+  // Auto-shows once per new version (tracked in localStorage, not anything server-side -- this is
+  // a purely local, offline app) -- the changelog itself is only fetched once here and reused by
+  // the manually-triggered "What's New" button too, rather than every open re-reading the file.
+  useEffect(() => {
+    Promise.all([window.api.getAppVersion(), window.api.getChangelog()]).then(([version, text]) => {
+      setChangelog(text)
+      const lastSeen = localStorage.getItem(LAST_SEEN_VERSION_KEY)
+      if (lastSeen !== version) {
+        setShowWhatsNew(true)
+        localStorage.setItem(LAST_SEEN_VERSION_KEY, version)
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -250,6 +271,43 @@ function App(): React.JSX.Element {
     }
   }
 
+  // The session's single fastest completed lap -- only needs the crossings array (not a full
+  // TelemetrySampler), recomputed only when the telemetry/start-finish point actually change.
+  const fastestLap = useMemo(() => {
+    if (!imported || !startFinish) return null
+    return fastestLapRange(detectLapCrossings(imported.telemetry.samples, startFinish))
+  }, [imported, startFinish])
+
+  const [showBestLapExportForm, setShowBestLapExportForm] = useState(false)
+  const [bestLapPaddingBeforeSec, setBestLapPaddingBeforeSec] = useState(5)
+  const [bestLapPaddingAfterSec, setBestLapPaddingAfterSec] = useState(5)
+
+  // Exports just the fastest lap (plus configurable padding) as its own clip -- builds a ProjectPayload
+  // with an OVERRIDDEN trim range for this one export only, never touching the user's actual saved
+  // trim, same "one-shot payload, no mutation" approach as any other export.
+  async function handleExportBestLap(): Promise<void> {
+    if (!imported || widgets.length === 0 || !fastestLap) return
+    const totalDurationMs = imported.telemetry.videoDurationMs
+    const clipTrimStartMs = Math.max(0, fastestLap.startCts - bestLapPaddingBeforeSec * 1000)
+    const clipTrimEndMs = Math.min(totalDurationMs, fastestLap.endCts + bestLapPaddingAfterSec * 1000)
+    setShowBestLapExportForm(false)
+    setExportEncoderLabel(null)
+    setExportState({ phase: 'exporting', done: 0, total: 1 })
+    try {
+      const path = await window.api.exportVideo({
+        imported,
+        widgets,
+        startFinish,
+        trimStartMs: clipTrimStartMs,
+        trimEndMs: clipTrimEndMs
+      })
+      setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
+    } catch (err) {
+      console.error('[export best lap] failed:', err)
+      setExportState({ phase: 'error', message: err instanceof Error ? err.message : String(err) })
+    }
+  }
+
   const isExporting = exportState.phase === 'exporting'
 
   if (imported) {
@@ -304,6 +362,18 @@ function App(): React.JSX.Element {
               {status === 'loading' ? 'Importing…' : 'Import different clip(s)'}
             </button>
             <button
+              className="import-button import-button--ghost"
+              onClick={() => setShowBestLapExportForm((v) => !v)}
+              disabled={isExporting || widgets.length === 0 || !fastestLap}
+              title={
+                !fastestLap
+                  ? 'No completed lap yet -- set a start/finish line and complete at least one lap'
+                  : `Export just your fastest lap (Lap ${fastestLap.lapNumber})`
+              }
+            >
+              🏁 Export Best Lap…
+            </button>
+            <button
               className="import-button"
               onClick={handleExport}
               disabled={isExporting || widgets.length === 0}
@@ -311,8 +381,46 @@ function App(): React.JSX.Element {
             >
               {isExporting ? 'Exporting…' : 'Export Video'}
             </button>
+            <button className="import-button import-button--ghost" onClick={() => setShowWhatsNew(true)} title="What's changed recently">
+              What's New
+            </button>
           </div>
         </header>
+        {showBestLapExportForm && fastestLap && (
+          <div className="best-lap-export-form">
+            <span>
+              Export Lap {fastestLap.lapNumber} ({formatTime(fastestLap.timeMs, true)}) with
+            </span>
+            <label className="best-lap-export-form__field">
+              <input
+                type="number"
+                min={0}
+                max={60}
+                step={1}
+                value={bestLapPaddingBeforeSec}
+                onChange={(e) => setBestLapPaddingBeforeSec(Math.max(0, Number(e.target.value)))}
+              />
+              <span>s before</span>
+            </label>
+            <label className="best-lap-export-form__field">
+              <input
+                type="number"
+                min={0}
+                max={60}
+                step={1}
+                value={bestLapPaddingAfterSec}
+                onChange={(e) => setBestLapPaddingAfterSec(Math.max(0, Number(e.target.value)))}
+              />
+              <span>s after</span>
+            </label>
+            <button className="import-button" onClick={handleExportBestLap}>
+              Export
+            </button>
+            <button className="import-button import-button--ghost" onClick={() => setShowBestLapExportForm(false)}>
+              Cancel
+            </button>
+          </div>
+        )}
         {status === 'error' && <p className="app-shell__error toolbar__error">{error}</p>}
         {status === 'loading' && importProgress && <ImportProgressBanner progress={importProgress} />}
         {exportState.phase === 'exporting' && (
@@ -346,6 +454,7 @@ function App(): React.JSX.Element {
           </div>
         )}
         <Editor />
+        <WhatsNewModal isOpen={showWhatsNew} changelog={changelog} onClose={() => setShowWhatsNew(false)} />
       </div>
     )
   }
@@ -363,6 +472,9 @@ function App(): React.JSX.Element {
         </button>
         <button className="import-button import-button--ghost" onClick={handleOpenProject} disabled={status === 'loading'}>
           Open Project
+        </button>
+        <button className="import-button import-button--ghost" onClick={() => setShowWhatsNew(true)}>
+          What's New
         </button>
       </div>
 
@@ -403,6 +515,7 @@ function App(): React.JSX.Element {
           </ul>
         </div>
       )}
+      <WhatsNewModal isOpen={showWhatsNew} changelog={changelog} onClose={() => setShowWhatsNew(false)} />
     </div>
   )
 }

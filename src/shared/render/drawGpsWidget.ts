@@ -56,6 +56,14 @@ export interface GpsWidgetStyle {
   /** 'window' mode only -- half-width of the zoomed view, in meters (e.g. 25 shows a ~50m-wide
    *  area centered on the current position). */
   windowRadiusM: number
+  /** Plots a small marker at each detected corner apex (see shared/telemetry/apex.ts) directly on
+   *  the track outline -- shows WHERE the corners are, not just a floating speed number elsewhere
+   *  (that's what the Apex Speed Callout widget already shows). Detection is independent of that
+   *  widget's own thresholds -- each has its own, same as any other per-widget-style detection. */
+  showApexMarkers: boolean
+  apexMarkerColor: string
+  apexMinDropMps: number
+  apexMinGapMs: number
 }
 
 export const DEFAULT_GPS_STYLE: GpsWidgetStyle = {
@@ -75,7 +83,11 @@ export const DEFAULT_GPS_STYLE: GpsWidgetStyle = {
   showGhost: false,
   ghostColor: '#b026ff',
   viewMode: 'full',
-  windowRadiusM: 25
+  windowRadiusM: 25,
+  showApexMarkers: false,
+  apexMarkerColor: '#ffd60a',
+  apexMinDropMps: 8,
+  apexMinGapMs: 1500
 }
 
 /** The bounds to actually project against for this frame -- the full track's own bounds in 'full'
@@ -163,6 +175,9 @@ export interface DrawGpsWidgetOptions {
    *  at the SAME elapsed time into the baseline lap, not the same distance. Null when no baseline
    *  lap exists yet (e.g. still on the first timed lap), in which case no ghost is drawn. */
   ghostPosition?: ProjectedPoint | null
+  /** Only relevant when style.showApexMarkers is true -- one entry per detected apex, resolved by
+   *  the caller via sampler.positionAt(event.cts) (see shared/telemetry/apex.ts). */
+  apexPositions?: ProjectedPoint[]
 }
 
 /**
@@ -190,7 +205,8 @@ export function buildColoredGpsTrackCache(
 
 /** Draws the Quik-style GPS track: a line for the full lap/session shape plus a dot for current position. */
 export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions): void {
-  const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds, coloredTrackImage, ghostPosition } = options
+  const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds, coloredTrackImage, ghostPosition, apexPositions } =
+    options
   if (trackPoints.length === 0) return
 
   const effectiveBounds = effectiveGpsBounds(style, bounds, dotPosition)
@@ -230,6 +246,23 @@ export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions):
     ctx.beginPath()
     tracePath(ctx, screenPoints)
     ctx.stroke()
+    ctx.restore()
+  }
+
+  if (style.showApexMarkers && apexPositions && apexPositions.length > 0) {
+    const apexRadius = dotRadius * 0.55
+    ctx.save()
+    ctx.globalAlpha = 0.9
+    ctx.fillStyle = style.apexMarkerColor
+    ctx.strokeStyle = '#000000'
+    ctx.lineWidth = Math.max(1, apexRadius * 0.25)
+    for (const apexPosition of apexPositions) {
+      const screenApex = project(apexPosition)
+      ctx.beginPath()
+      ctx.arc(screenApex.x, screenApex.y, apexRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    }
     ctx.restore()
   }
 

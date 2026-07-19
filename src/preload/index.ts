@@ -26,6 +26,8 @@ const api = {
   saveAutosave: (payload: ProjectPayload): Promise<void> => ipcRenderer.invoke('autosave:save', payload),
   loadAutosave: (): Promise<ProjectPayload | null> => ipcRenderer.invoke('autosave:load'),
   clearAutosave: (): Promise<void> => ipcRenderer.invoke('autosave:clear'),
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+  getChangelog: (): Promise<string> => ipcRenderer.invoke('app:getChangelog'),
   onExportProgress: (callback: (progress: ExportProgress) => void): (() => void) => {
     const listener = (_event: unknown, progress: ExportProgress): void => callback(progress)
     ipcRenderer.on('export:progress', listener)
