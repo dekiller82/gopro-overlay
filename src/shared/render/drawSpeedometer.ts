@@ -129,9 +129,9 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
   const minorStep = majorStep / MINOR_SUBDIVISIONS
   const tickCount = Math.round(span / minorStep)
 
-  // The "progress" readout is every fine tick from zero up to the current value recolored into the
-  // accent color, rather than a separate solid/dashed arc drawn on top -- this is what gives the
-  // buildup its thin, ticked texture instead of a thick continuous ring.
+  // Unfilled reference ticks (thin) beyond the current value, and a "buildup" of thicker, rounded
+  // accent-color pill segments from zero up to the current value -- the latter is what reads as a
+  // filling progress bar rather than just recolored tick marks.
   ctx.save()
   ctx.lineCap = 'round'
   for (let i = 0; i <= tickCount; i++) {
@@ -141,7 +141,7 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
     const filled = tickValue <= clamped + 1e-6
     ctx.strokeStyle = filled ? style.accentColor : style.color
     ctx.globalAlpha = filled ? 1 : 0.85
-    ctx.lineWidth = isMajor ? Math.max(1.4, radius * 0.022) : Math.max(1, radius * (filled ? 0.016 : 0.012))
+    ctx.lineWidth = filled ? radius * 0.05 : isMajor ? Math.max(1.4, radius * 0.022) : Math.max(1, radius * 0.012)
     const inner = isMajor ? radius * 0.87 : radius * 0.92
     const outer = radius * 1.0
     ctx.beginPath()
@@ -151,13 +151,16 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
   }
   ctx.restore()
 
-  // Hollow tip marker sitting on the tick ring at the current value, in place of a center needle.
+  // Thick white bar marking the current value's exact position, in place of a center needle.
   ctx.save()
   ctx.strokeStyle = style.color
-  ctx.lineWidth = Math.max(1.5, radius * 0.03)
-  const tipRadius = radius * 0.94
+  ctx.lineWidth = Math.max(3, radius * 0.06)
+  ctx.lineCap = 'round'
+  const tipInner = radius * 0.85
+  const tipOuter = radius * 1.03
   ctx.beginPath()
-  ctx.arc(cx + Math.cos(needleAngle) * tipRadius, cy + Math.sin(needleAngle) * tipRadius, radius * 0.045, 0, Math.PI * 2)
+  ctx.moveTo(cx + Math.cos(needleAngle) * tipInner, cy + Math.sin(needleAngle) * tipInner)
+  ctx.lineTo(cx + Math.cos(needleAngle) * tipOuter, cy + Math.sin(needleAngle) * tipOuter)
   ctx.stroke()
   ctx.restore()
 
