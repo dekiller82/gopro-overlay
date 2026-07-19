@@ -4,6 +4,12 @@ All notable changes to GoPro Overlay are documented here.
 
 ## [Unreleased]
 
+### Added
+- **GPS Track zoomed window view** — an optional view mode that keeps the current position centered
+  and zoomed in to an adjustable radius, instead of always fitting the whole track to the widget.
+  Makes a close gap to the ghost marker actually visible instead of a fraction of a pixel on the
+  full track's own scale.
+
 ### Fixed
 - **Fixed a real memory leak that could crash the app with an out-of-memory error during a long
   editing session.** The cache backing widget header-logo images had no size limit at all — every

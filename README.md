@@ -58,7 +58,9 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
   G-force threshold for what counts as "braking"). Dot color, radius, and an optional glow are
   configurable separately from the line. An optional **ghost marker** shows your fastest completed
   lap's own position at the same elapsed time into its lap, once one exists to compare against —
-  a real spatial ahead/behind gap, not just a number.
+  a real spatial ahead/behind gap, not just a number. A **zoomed window view mode** keeps the
+  current position centered and zoomed in to an adjustable radius instead of always fitting the
+  whole track to the widget, so a close gap to the ghost marker is actually visible.
 
 - **Speedometer (analog & digital)** — current speed in km/h or mph, Gaussian-smoothed to damp GPS
   jitter (smoothing window is adjustable). The analog gauge has its own configurable min/max scale;

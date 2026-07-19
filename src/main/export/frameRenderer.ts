@@ -63,7 +63,7 @@ export async function createFrameRenderer(
     if (widget.type === 'apexSpeedCallout') {
       apexEventsByWidgetId.set(widget.id, detectApexEvents(sampler.samples, widget.style.minDropMps, widget.style.minGapMs))
     }
-    if (widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid') {
+    if (widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid' && widget.style.viewMode !== 'window') {
       const rect: Rect = { x: widget.x * width, y: widget.y * height, w: widget.w * width, h: widget.h * height }
       const cacheCanvas = createCanvas(Math.max(1, Math.round(rect.w)), Math.max(1, Math.round(rect.h)))
       const cacheCtx = cacheCanvas.getContext('2d')

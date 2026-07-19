@@ -640,6 +640,36 @@ function PropertyPanel(): React.JSX.Element {
           )}
 
           <label className="field">
+            <span>View mode</span>
+            <select
+              value={style.viewMode}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, viewMode: e.target.value as GpsWidgetStyle['viewMode'] } })}
+            >
+              <option value="full">Full track</option>
+              <option value="window">Zoomed window (follows current position)</option>
+            </select>
+          </label>
+          {style.viewMode === 'window' && (
+            <>
+              <label className="field">
+                <span>Window radius ({style.windowRadiusM}m)</span>
+                <input
+                  type="range"
+                  min={5}
+                  max={200}
+                  step={5}
+                  value={style.windowRadiusM}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, windowRadiusM: Number(e.target.value) } })}
+                />
+              </label>
+              <span className="field__hint">
+                Keeps the current position centered and zoomed in, so a close gap to the ghost marker is
+                actually visible instead of a fraction of a pixel on the full track.
+              </span>
+            </>
+          )}
+
+          <label className="field">
             <span>Rotation ({selected.rotation}°)</span>
             <input
               type="range"

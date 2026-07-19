@@ -26,7 +26,9 @@ const gpsStyleSchema = z.object({
   neutralColor: z.string().default('#ffffff'),
   brakingThresholdMps2: z.number().default(1.5),
   showGhost: z.boolean().default(false),
-  ghostColor: z.string().default('#b026ff')
+  ghostColor: z.string().default('#b026ff'),
+  viewMode: z.enum(['full', 'window']).default('full'),
+  windowRadiusM: z.number().default(25)
 })
 
 const speedometerStyleSchema = z.object({

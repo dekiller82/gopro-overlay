@@ -48,6 +48,14 @@ export interface GpsWidgetStyle {
    *  completed lap to exist, and not every layout wants a second dot on the track. */
   showGhost: boolean
   ghostColor: string
+  /** 'full' (default) fits the entire track/session shape to the widget, same as always. 'window'
+   *  instead centers the view on the current live position and zooms in to a fixed radius around
+   *  it -- on a full-track view a close gap between the live dot and the ghost marker can be a
+   *  fraction of a pixel; zoomed in, the same gap is actually visible. */
+  viewMode: 'full' | 'window'
+  /** 'window' mode only -- half-width of the zoomed view, in meters (e.g. 25 shows a ~50m-wide
+   *  area centered on the current position). */
+  windowRadiusM: number
 }
 
 export const DEFAULT_GPS_STYLE: GpsWidgetStyle = {
@@ -65,7 +73,24 @@ export const DEFAULT_GPS_STYLE: GpsWidgetStyle = {
   neutralColor: '#ffffff',
   brakingThresholdMps2: 1.5,
   showGhost: false,
-  ghostColor: '#b026ff'
+  ghostColor: '#b026ff',
+  viewMode: 'full',
+  windowRadiusM: 25
+}
+
+/** The bounds to actually project against for this frame -- the full track's own bounds in 'full'
+ *  mode (unchanged from before this option existed), or a small square centered on the current live
+ *  position in 'window' mode. Exported so callers building the colorMode 'speed'/'braking' cache
+ *  (which is built once against a STATIC transform) can tell it doesn't apply in 'window' mode,
+ *  where the transform moves every single frame. */
+export function effectiveGpsBounds(style: GpsWidgetStyle, bounds: TrackBounds, dotPosition: ProjectedPoint): TrackBounds {
+  if (style.viewMode !== 'window') return bounds
+  return {
+    minX: dotPosition.x - style.windowRadiusM,
+    maxX: dotPosition.x + style.windowRadiusM,
+    minY: dotPosition.y - style.windowRadiusM,
+    maxY: dotPosition.y + style.windowRadiusM
+  }
 }
 
 /** Per-segment color for 'speed' mode: lerps between slowColor/fastColor by this session's own
@@ -168,7 +193,8 @@ export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions):
   const { rect, trackPoints, dotPosition, bounds, style, trackSpeeds, trackCts, speedBounds, coloredTrackImage, ghostPosition } = options
   if (trackPoints.length === 0) return
 
-  const project = createRectFitTransform(bounds, rect)
+  const effectiveBounds = effectiveGpsBounds(style, bounds, dotPosition)
+  const project = createRectFitTransform(effectiveBounds, rect)
   const screenDot = project(dotPosition)
 
   // lineWidth/dotRadius are nominal pixel values tuned at a reference box size -- scaled here so
@@ -178,8 +204,10 @@ export function drawGpsWidget(ctx: Canvas2DLike, options: DrawGpsWidgetOptions):
   const lineWidth = scaleToRect(style.lineWidth, rect)
   const dotRadius = scaleToRect(style.dotRadius, rect)
 
+  // The cached image is pre-rendered once against the FULL track's own static bounds -- incompatible
+  // with 'window' mode, where the transform recenters on the live position every single frame.
   const canColor = style.colorMode !== 'solid' && trackSpeeds && trackCts && speedBounds && trackPoints.length > 1
-  if (canColor && coloredTrackImage) {
+  if (canColor && coloredTrackImage && style.viewMode !== 'window') {
     // The cache already has style.lineOpacity baked into its own pixels (drawColoredTrackSegments
     // applies it while building the cache) -- compositing it at globalAlpha 1 here reproduces
     // exactly the same pixels as the fresh-draw path, including how overlapping segments (e.g. two

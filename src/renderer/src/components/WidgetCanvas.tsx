@@ -69,7 +69,11 @@ function WidgetCanvas({
   // potentially tens of thousands of individual segments 60 times a second during playback -- see
   // buildColoredGpsTrackCache's own doc comment. Recomputed only when style/size/track data actually
   // change (dragging/resizing a DIFFERENT widget, or scrubbing the timeline, doesn't touch this).
-  const gpsColorStyle = widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid' ? widget.style : null
+  // 'window' mode recenters/zooms every frame, incompatible with a cache pre-rendered once against
+  // the full track's own static bounds -- drawGpsWidget always draws fresh in that mode, so building
+  // this cache for it would just be wasted work.
+  const gpsColorStyle =
+    widget.type === 'gpsTrack' && widget.style.colorMode !== 'solid' && widget.style.viewMode !== 'window' ? widget.style : null
   const coloredTrackImage = useMemo(() => {
     if (!gpsColorStyle || pixelWidth <= 0 || pixelHeight <= 0) return null
     const cacheCanvas = document.createElement('canvas')
