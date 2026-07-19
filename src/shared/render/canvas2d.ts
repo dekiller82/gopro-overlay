@@ -22,6 +22,7 @@ export interface Canvas2DLike {
   measureText(text: string): { width: number }
   translate(x: number, y: number): void
   rotate(angleRadians: number): void
+  setLineDash(segments: number[]): void
   strokeStyle: string
   fillStyle: string
   lineWidth: number
