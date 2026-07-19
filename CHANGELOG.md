@@ -2,6 +2,15 @@
 
 All notable changes to GoPro Overlay are documented here.
 
+## [0.1.6] - 2026-07-20
+
+### Fixed
+- **Preview now actually falls back to a real transcode when it needs to** — previously, if a clip's
+  quick remux "succeeded" as a file but still couldn't be decoded (a genuinely unsupported codec,
+  not just a container quirk), the app gave up with the same generic error instead of trying the
+  VP9/WebM re-encode that could actually fix it. Reported as preview still failing "even after
+  trying to transcode" on Linux, even from a fast internal SSD.
+
 ## [0.1.5] - 2026-07-19
 
 ### Fixed
