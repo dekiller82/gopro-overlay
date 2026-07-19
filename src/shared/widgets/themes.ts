@@ -62,5 +62,9 @@ export function applyThemeToWidget(widget: WidgetInstance, theme: LayoutTheme): 
       return { ...widget, style: { ...widget.style, color: primary, accentColor: accent, labelColor: label, backgroundColor, backgroundOpacity } }
     case 'lapConsistency':
       return { ...widget, style: { ...widget.style, barColor: label, bestLapColor: accent, labelColor: label, backgroundColor, backgroundOpacity } }
+    case 'customText':
+      // Its image (a logo/watermark) is left untouched -- only the text/background colors are
+      // theme-driven, same reasoning as every other widget's non-color fields.
+      return { ...widget, style: { ...widget.style, textColor: primary, backgroundColor, backgroundOpacity } }
   }
 }

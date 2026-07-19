@@ -11,6 +11,7 @@ import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '../render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '../render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '../render/drawSessionSummary'
 import { DEFAULT_LAP_CONSISTENCY_STYLE } from '../render/drawLapConsistency'
+import { DEFAULT_CUSTOM_TEXT_STYLE } from '../render/drawCustomText'
 import type {
   GpsTrackWidgetInstance,
   SpeedometerAnalogWidgetInstance,
@@ -25,6 +26,7 @@ import type {
   RollAngleWidgetInstance,
   SessionSummaryWidgetInstance,
   LapConsistencyWidgetInstance,
+  CustomTextWidgetInstance,
   WidgetInstance
 } from '../types'
 
@@ -228,6 +230,21 @@ export function createLapConsistencyWidget(): LapConsistencyWidgetInstance {
   }
 }
 
+export function createCustomTextWidget(): CustomTextWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'customText',
+    x: 0.04,
+    y: 0.9,
+    w: 0.2,
+    h: 0.08,
+    rotation: 0,
+    zIndex: 1,
+    locked: false,
+    style: { ...DEFAULT_CUSTOM_TEXT_STYLE }
+  }
+}
+
 export function createWidget(type: WidgetInstance['type']): WidgetInstance {
   switch (type) {
     case 'gpsTrack':
@@ -256,5 +273,7 @@ export function createWidget(type: WidgetInstance['type']): WidgetInstance {
       return createSessionSummaryWidget()
     case 'lapConsistency':
       return createLapConsistencyWidget()
+    case 'customText':
+      return createCustomTextWidget()
   }
 }

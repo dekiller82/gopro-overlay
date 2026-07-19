@@ -84,7 +84,8 @@ describe('layoutPresets', () => {
     'gForceDiagram',
     'rollAngle',
     'sessionSummary',
-    'lapConsistency'
+    'lapConsistency',
+    'customText'
   ]
 
   it('round-trips a layout containing every widget type through save + list', async () => {

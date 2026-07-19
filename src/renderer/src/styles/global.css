@@ -438,6 +438,23 @@ body {
   pointer-events: none;
 }
 
+/* Extended top/bottom hit area (like the trim handles below) so this is actually clickable despite
+   the track itself being only 6px tall. */
+.timeline__lap-marker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  background: #ffd60a;
+  transform: translateX(-1px);
+  cursor: pointer;
+  z-index: 1;
+}
+
+.timeline__lap-marker:hover {
+  background: #fff;
+}
+
 .timeline__trim-mask {
   position: absolute;
   top: 0;
@@ -740,13 +757,19 @@ body {
 
 .field select,
 .field input[type='number'],
-.field input[type='text'] {
+.field input[type='text'],
+.field textarea {
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 4px;
   padding: 4px 6px;
   font-size: 12px;
+}
+
+.field textarea {
+  resize: vertical;
+  font-family: inherit;
 }
 
 .app-shell__brand {

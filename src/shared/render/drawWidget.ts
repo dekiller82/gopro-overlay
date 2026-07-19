@@ -20,6 +20,7 @@ import { drawGForceDiagram } from './drawGForceDiagram'
 import { drawRollAngle } from './drawRollAngle'
 import { drawSessionSummary, type SessionSummaryData } from './drawSessionSummary'
 import { drawLapConsistency } from './drawLapConsistency'
+import { drawCustomText } from './drawCustomText'
 
 export interface WidgetDrawContext {
   trackPoints: ProjectedPoint[]
@@ -38,7 +39,9 @@ export interface WidgetDrawContext {
   /** Only relevant for an 'apexSpeedCallout' widget -- precomputed once per widget instance (its
    *  detection thresholds are per-widget style, not shared like lap/sector/delta state). */
   apexEvents?: ApexEvent[]
-  /** Only relevant for a 'timer' widget in mode 'laps' with a custom header logo set. Loaded ahead of time by the caller. */
+  /** Only relevant for a 'timer' widget in mode 'laps' with a custom header logo set, or a
+   *  'customText' widget with an image set -- both are user-uploaded, data-URL-backed images keyed
+   *  by widget id, so this one field/map serves either. Loaded ahead of time by the caller. */
   headerImage?: CanvasImageLike | null
   /** Bundled fl.png, loaded once by the caller and shared across every timing-tower widget/frame. */
   fastestLapIcon?: CanvasImageLike | null
@@ -157,6 +160,9 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
       return
     case 'lapConsistency':
       drawLapConsistency(ctx, { rect, style: widget.style, lapState: data.lapState ?? null })
+      return
+    case 'customText':
+      drawCustomText(ctx, { rect, style: widget.style, image: data.headerImage })
       return
   }
 }

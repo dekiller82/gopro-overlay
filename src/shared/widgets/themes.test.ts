@@ -68,7 +68,8 @@ describe('applyThemeToWidget', () => {
       'gForceDiagram',
       'rollAngle',
       'sessionSummary',
-      'lapConsistency'
+      'lapConsistency',
+      'customText'
     ]
     for (const type of types) {
       for (const t of LAYOUT_THEMES) {

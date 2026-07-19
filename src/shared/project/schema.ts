@@ -318,6 +318,26 @@ const lapConsistencyWidgetSchema = z.object({
   style: lapConsistencyStyleSchema
 })
 
+const customTextStyleSchema = z.object({
+  text: z.string(),
+  textColor: z.string(),
+  textAlign: z.enum(['left', 'center', 'right']),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  imageDataUrl: z.string().nullable(),
+  imageScale: z.number(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number()
+})
+
+const customTextWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('customText'),
+  ...transformFields,
+  style: customTextStyleSchema
+})
+
 export const widgetSchema = z.discriminatedUnion('type', [
   gpsTrackWidgetSchema,
   speedometerAnalogWidgetSchema,
@@ -331,7 +351,8 @@ export const widgetSchema = z.discriminatedUnion('type', [
   gForceDiagramWidgetSchema,
   rollAngleWidgetSchema,
   sessionSummaryWidgetSchema,
-  lapConsistencyWidgetSchema
+  lapConsistencyWidgetSchema,
+  customTextWidgetSchema
 ])
 
 export const videoMetaSchema = z.object({

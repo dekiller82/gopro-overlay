@@ -14,6 +14,7 @@ import { DEFAULT_GFORCE_DIAGRAM_STYLE } from '@shared/render/drawGForceDiagram'
 import { DEFAULT_ROLL_ANGLE_STYLE } from '@shared/render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '@shared/render/drawSessionSummary'
 import { DEFAULT_LAP_CONSISTENCY_STYLE } from '@shared/render/drawLapConsistency'
+import { DEFAULT_CUSTOM_TEXT_STYLE } from '@shared/render/drawCustomText'
 import { applyThemeToWidget, LAYOUT_THEMES, type LayoutTheme } from '@shared/widgets/themes'
 import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
@@ -63,6 +64,8 @@ function widgetLabel(type: WidgetInstance['type']): string {
       return 'Session Summary'
     case 'lapConsistency':
       return 'Lap Consistency'
+    case 'customText':
+      return 'Custom Text/Logo'
   }
 }
 
@@ -323,6 +326,9 @@ function PropertyPanel(): React.JSX.Element {
           </button>
           <button className="property-panel__add" onClick={() => addWidget('lapConsistency')}>
             + Lap Consistency
+          </button>
+          <button className="property-panel__add" onClick={() => addWidget('customText')}>
+            + Custom Text/Logo
           </button>
         </div>
         <ul className="widget-list">
@@ -2493,6 +2499,153 @@ function PropertyPanel(): React.JSX.Element {
                 onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
               />
             </label>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'customText' && (() => {
+        const style = { ...DEFAULT_CUSTOM_TEXT_STYLE, ...selected.style }
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Custom Text/Logo style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">
+            Freeform text and/or an uploaded image -- a driver name, event title, or sponsor watermark,
+            not derived from telemetry. Image sits above the text when both are set.
+          </span>
+
+          <label className="field">
+            <span>Text (multiple lines supported)</span>
+            <textarea
+              rows={3}
+              value={style.text}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, text: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Text align</span>
+            <select
+              value={style.textAlign}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textAlign: e.target.value as 'left' | 'center' | 'right' } })}
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Text color</span>
+            <input type="color" value={style.textColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, textColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Text outline ({style.textOutlineWidth}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={6}
+              step={1}
+              value={style.textOutlineWidth}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+            />
+          </label>
+
+          {style.textOutlineWidth > 0 && (
+            <label className="field">
+              <span>Outline color</span>
+              <input
+                type="color"
+                value={style.textOutlineColor}
+                onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+              />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Image</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const dataUrl = await readImageFileAsDataUrl(file)
+                updateWidget(selected.id, { style: { ...style, imageDataUrl: dataUrl } })
+                e.target.value = ''
+              }}
+            />
+          </label>
+          {style.imageDataUrl && (
+            <>
+              <button className="property-panel__delete" onClick={() => updateWidget(selected.id, { style: { ...style, imageDataUrl: null } })}>
+                Remove image
+              </button>
+
+              <label className="field">
+                <span>Image scale ({style.imageScale.toFixed(2)}x)</span>
+                <input
+                  type="range"
+                  min={0.3}
+                  max={5}
+                  step={0.05}
+                  value={style.imageScale}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, imageScale: Number(e.target.value) } })}
+                />
+              </label>
+            </>
           )}
 
           <label className="field">

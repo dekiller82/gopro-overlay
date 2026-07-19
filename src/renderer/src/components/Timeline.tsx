@@ -1,7 +1,7 @@
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatTime } from '@shared/format'
 import { clipIndexAtGlobalMs } from '@shared/timeline/clipTiming'
-import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
+import { detectLapCrossings, fastestLapRange, lapTimesFromCrossings } from '@shared/telemetry/laps'
 import type { TelemetrySampler } from '@shared/telemetry/sampleAt'
 import { useProjectStore } from '../store/projectStore'
 import { useWidgetStore } from '../store/widgetStore'
@@ -30,18 +30,30 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
   const startFinish = useProjectStore((s) => s.startFinish)
   const widgetSelectedIds = useWidgetStore((s) => s.selectedIds)
 
-  // The session's single fastest completed lap, for the "Jump to fastest lap" button -- recomputed
-  // only when the telemetry/start-finish point actually change, not per frame.
-  const fastestLap = useMemo(() => {
-    if (!sampler || !startFinish) return null
-    const crossings = detectLapCrossings(sampler.samples, startFinish)
-    return fastestLapRange(crossings)
+  // Start/finish crossings, shared by the "Jump to fastest lap" button, the per-lap timeline
+  // markers below, and their tooltips -- recomputed only when the telemetry/start-finish point
+  // actually change, not per frame.
+  const crossings = useMemo(() => {
+    if (!sampler || !startFinish) return []
+    return detectLapCrossings(sampler.samples, startFinish)
   }, [sampler, startFinish])
+
+  const fastestLap = useMemo(() => fastestLapRange(crossings), [crossings])
+  // One entry per COMPLETED lap, index-aligned with crossings.slice(1) -- lapTimes[i] is the
+  // duration of the lap that just finished at crossings[i + 1].
+  const lapTimes = useMemo(() => lapTimesFromCrossings(crossings), [crossings])
 
   const jumpToFastestLap = useCallback(() => {
     if (!fastestLap) return
     playerApiRef.current?.seekToGlobalMs(fastestLap.startCts)
   }, [fastestLap, playerApiRef])
+
+  const jumpToLapStart = useCallback(
+    (cts: number) => {
+      playerApiRef.current?.seekToGlobalMs(cts)
+    },
+    [playerApiRef]
+  )
 
   const trackRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState<DragMode>(null)
@@ -319,6 +331,27 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
         {imported.clips.slice(1).map((clip) => {
           const clipPct = totalDurationMs ? (clip.startOffsetMs / totalDurationMs) * 100 : 0
           return <div key={clip.startOffsetMs} className="timeline__clip-marker" style={{ left: `${clipPct}%` }} />
+        })}
+        {crossings.map((cts, i) => {
+          const lapPct = totalDurationMs ? (cts / totalDurationMs) * 100 : 0
+          const precedingLapTime = i > 0 ? lapTimes[i - 1] : null
+          return (
+            <div
+              key={cts}
+              className="timeline__lap-marker"
+              style={{ left: `${lapPct}%` }}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                jumpToLapStart(cts)
+              }}
+              title={
+                precedingLapTime !== null
+                  ? `Lap ${i + 1} start (Lap ${i} was ${formatTime(precedingLapTime, true)})`
+                  : `Lap ${i + 1} start`
+              }
+            />
+          )
         })}
         <div className="timeline__handle" style={{ left: `${pct}%` }} />
         <div

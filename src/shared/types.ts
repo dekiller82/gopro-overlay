@@ -173,6 +173,12 @@ export interface LapConsistencyWidgetInstance extends WidgetTransform {
   style: import('./render/drawLapConsistency').LapConsistencyStyle
 }
 
+export interface CustomTextWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'customText'
+  style: import('./render/drawCustomText').CustomTextStyle
+}
+
 export type WidgetInstance =
   | GpsTrackWidgetInstance
   | SpeedometerAnalogWidgetInstance
@@ -187,6 +193,7 @@ export type WidgetInstance =
   | RollAngleWidgetInstance
   | SessionSummaryWidgetInstance
   | LapConsistencyWidgetInstance
+  | CustomTextWidgetInstance
 
 export interface ProjectPayload {
   imported: ImportResult

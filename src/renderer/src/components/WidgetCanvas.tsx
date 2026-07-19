@@ -49,7 +49,12 @@ function WidgetCanvas({
 }: Props): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const headerImageDataUrl = widget.type === 'timer' && widget.style.mode === 'laps' ? widget.style.headerImageDataUrl : null
+  const headerImageDataUrl =
+    widget.type === 'timer' && widget.style.mode === 'laps'
+      ? widget.style.headerImageDataUrl
+      : widget.type === 'customText'
+        ? widget.style.imageDataUrl
+        : null
   const headerImage = useLoadedImage(headerImageDataUrl)
   const fastestLapIcon = useLoadedImage(flIconUrl)
 

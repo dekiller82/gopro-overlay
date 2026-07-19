@@ -63,6 +63,9 @@ export async function createFrameRenderer(
         headerImageByWidgetId.set(widget.id, await loadHeaderImageFromDataUrl(widget.style.headerImageDataUrl))
       }
     }
+    if (widget.type === 'customText' && widget.style.imageDataUrl) {
+      headerImageByWidgetId.set(widget.id, await loadHeaderImageFromDataUrl(widget.style.imageDataUrl))
+    }
     if (widget.type === 'apexSpeedCallout') {
       apexEventsByWidgetId.set(widget.id, detectApexEvents(sampler.samples, widget.style.minDropMps, widget.style.minGapMs))
     }
