@@ -1,9 +1,10 @@
 import { spawn } from 'child_process'
-import ffmpegPath from 'ffmpeg-static'
+import ffmpegPathRaw from 'ffmpeg-static'
 import type { ClipInfo, LatLon, WidgetInstance } from '../../shared/types'
 import type { TelemetrySampler } from '../../shared/telemetry/sampleAt'
 import { createFrameRenderer } from './frameRenderer'
 import { selectVideoEncoder, CPU_ENCODER, type VideoEncoder } from './gpuEncoder'
+import { resolveUnpackedBinaryPath } from '../app/binaryPath'
 
 export interface ExportSettings {
   width: number
@@ -238,6 +239,7 @@ function runWithEncoder(
 export async function runExport(options: RunExportOptions): Promise<void> {
   const { clips, outputPath, widgets, sampler, startFinish, trimStartMs, trimEndMs, settings, onProgress, onEncoderSelected } = options
 
+  const ffmpegPath = resolveUnpackedBinaryPath(ffmpegPathRaw)
   if (!ffmpegPath) throw new Error('Bundled ffmpeg binary not found for this platform')
   if (widgets.length === 0) throw new Error('No widgets to export')
   if (clips.length === 0) throw new Error('No clips to export')

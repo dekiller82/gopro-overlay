@@ -4,8 +4,9 @@ import { mkdir, rename, rm, stat, unlink } from 'fs/promises'
 import { createHash } from 'crypto'
 import { join } from 'path'
 import { app } from 'electron'
-import ffmpegPath from 'ffmpeg-static'
+import ffmpegPathRaw from 'ffmpeg-static'
 import type { VideoMeta } from '../../shared/types'
+import { resolveUnpackedBinaryPath } from '../app/binaryPath'
 
 function getPreviewCacheDir(): string {
   return join(app.getPath('temp'), 'gopro-overlay-previews')
@@ -113,6 +114,7 @@ export async function ensurePreviewProxy(
   video: VideoMeta,
   onProgress?: (fraction: number) => void
 ): Promise<string> {
+  const ffmpegPath = resolveUnpackedBinaryPath(ffmpegPathRaw)
   if (!ffmpegPath) throw new Error('Bundled ffmpeg binary not found for this platform')
   const resolvedFfmpegPath: string = ffmpegPath
 

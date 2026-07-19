@@ -4,6 +4,9 @@ import { basename } from 'path'
 import ffprobeStatic from 'ffprobe-static'
 import type { VideoMeta } from '../../shared/types'
 import { findLrvSibling } from './lrv'
+import { resolveUnpackedBinaryPath } from '../app/binaryPath'
+
+const ffprobePath = resolveUnpackedBinaryPath(ffprobeStatic.path)
 
 const execFileAsync = promisify(execFile)
 
@@ -30,7 +33,7 @@ function parseFrameRate(rate: string | undefined): number {
 }
 
 export async function probeVideo(filePath: string): Promise<VideoMeta> {
-  const { stdout } = await execFileAsync(ffprobeStatic.path, [
+  const { stdout } = await execFileAsync(ffprobePath, [
     '-v',
     'quiet',
     '-print_format',
