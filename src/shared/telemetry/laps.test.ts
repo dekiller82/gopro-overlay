@@ -67,6 +67,41 @@ describe('detectLapCrossings', () => {
     expect(detectLapCrossings([], startFinish)).toEqual([])
     expect(detectLapCrossings([makeSample(0)], startFinish)).toEqual([])
   })
+
+  describe('manual per-crossing adjustments', () => {
+    it('nudges a single crossing by the given signed ms, leaving the others untouched', () => {
+      const samples = makeLoopedSamples(4, 30000, 200)
+      const raw = detectLapCrossings(samples, startFinish, 15, 5000)
+      const adjusted = detectLapCrossings(samples, startFinish, 15, 5000, { '1': -133 })
+      expect(adjusted[0]).toBe(raw[0])
+      expect(adjusted[1]).toBe(raw[1] - 133)
+      expect(adjusted[2]).toBe(raw[2])
+      expect(adjusted[3]).toBe(raw[3])
+    })
+
+    it('applies independent adjustments to multiple crossings at once', () => {
+      const samples = makeLoopedSamples(4, 30000, 200)
+      const raw = detectLapCrossings(samples, startFinish, 15, 5000)
+      const adjusted = detectLapCrossings(samples, startFinish, 15, 5000, { '0': 100, '2': -50 })
+      expect(adjusted).toEqual([raw[0] + 100, raw[1], raw[2] - 50, raw[3]])
+    })
+
+    it('clamps an adjustment so it can never cross past a neighboring crossing (defensive against a huge nudge)', () => {
+      const samples = makeLoopedSamples(3, 30000, 200)
+      const raw = detectLapCrossings(samples, startFinish, 15, 5000)
+      // A wildly large forward nudge on crossing 0 should stop just short of crossing 1's ORIGINAL position.
+      const adjusted = detectLapCrossings(samples, startFinish, 15, 5000, { '0': 1_000_000 })
+      expect(adjusted[0]).toBe(raw[1] - 1)
+      expect(adjusted[1]).toBe(raw[1])
+    })
+
+    it('an empty adjustments object is a no-op, identical to omitting the parameter', () => {
+      const samples = makeLoopedSamples(4, 30000, 200)
+      const withEmpty = detectLapCrossings(samples, startFinish, 15, 5000, {})
+      const withoutParam = detectLapCrossings(samples, startFinish, 15, 5000)
+      expect(withEmpty).toEqual(withoutParam)
+    })
+  })
 })
 
 describe('lapTimesFromCrossings', () => {

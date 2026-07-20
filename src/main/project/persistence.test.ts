@@ -22,7 +22,7 @@ function makeVideoMeta(path: string, overrides: Partial<VideoMeta> = {}): VideoM
   }
 }
 
-function makePayload(dir: string, clipCount = 1): ProjectPayload {
+function makePayload(dir: string, clipCount = 1, crossingAdjustmentsMs: ProjectPayload['crossingAdjustmentsMs'] = {}): ProjectPayload {
   const clips: ClipInfo[] = []
   let offsetMs = 0
   for (let i = 0; i < clipCount; i++) {
@@ -52,6 +52,7 @@ function makePayload(dir: string, clipCount = 1): ProjectPayload {
     imported,
     widgets: [createWidget('gpsTrack'), createWidget('speedometerAnalog'), createWidget('timer')],
     startFinish: { lat: 51.5, lon: -0.1 },
+    crossingAdjustmentsMs,
     trimStartMs: 0,
     trimEndMs: offsetMs
   }
@@ -77,8 +78,21 @@ describe('project persistence', () => {
     expect(loaded.imported.telemetry).toEqual(payload.imported.telemetry)
     expect(loaded.widgets).toEqual(payload.widgets)
     expect(loaded.startFinish).toEqual(payload.startFinish)
+    expect(loaded.crossingAdjustmentsMs).toEqual(payload.crossingAdjustmentsMs)
     expect(loaded.trimStartMs).toBe(payload.trimStartMs)
     expect(loaded.trimEndMs).toBe(payload.trimEndMs)
+  })
+
+  it('round-trips manual per-crossing adjustments', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gpo-persist-'))
+    dirs.push(dir)
+    const payload = makePayload(dir, 1, { '0': -133, '2': 66 })
+    const projectPath = join(dir, 'session.gpo')
+
+    await saveProjectToFile(projectPath, payload)
+    const loaded = await loadProjectFromFile(projectPath)
+
+    expect(loaded.crossingAdjustmentsMs).toEqual({ '0': -133, '2': 66 })
   })
 
   it('round-trips a multi-clip project file with trim points', async () => {

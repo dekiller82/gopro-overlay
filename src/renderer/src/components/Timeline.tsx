@@ -28,6 +28,9 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   const setTrim = useProjectStore((s) => s.setTrim)
   const startFinish = useProjectStore((s) => s.startFinish)
+  const crossingAdjustmentsMs = useProjectStore((s) => s.crossingAdjustmentsMs)
+  const nudgeCrossing = useProjectStore((s) => s.nudgeCrossing)
+  const resetCrossingAdjustment = useProjectStore((s) => s.resetCrossingAdjustment)
   const widgetSelectedIds = useWidgetStore((s) => s.selectedIds)
 
   // Start/finish crossings, shared by the "Jump to fastest lap" button, the per-lap timeline
@@ -35,8 +38,28 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
   // actually change, not per frame.
   const crossings = useMemo(() => {
     if (!sampler || !startFinish) return []
-    return detectLapCrossings(sampler.samples, startFinish)
+    return detectLapCrossings(sampler.samples, startFinish, undefined, undefined, crossingAdjustmentsMs)
+  }, [sampler, startFinish, crossingAdjustmentsMs])
+
+  // Which crossing (by index) the nudge control below is currently adjusting -- selected by
+  // clicking its timeline marker. Cleared whenever the crossing list itself changes shape (new
+  // start/finish point, or a different import) so a stale index can't silently point at a
+  // different lap after a change never intended to affect this control.
+  const [selectedCrossingIndex, setSelectedCrossingIndex] = useState<number | null>(null)
+  useEffect(() => {
+    setSelectedCrossingIndex(null)
   }, [sampler, startFinish])
+
+  // 1 video frame's duration in ms at a given global cts, using whichever clip is actually active
+  // there -- same lookup stepFrame already does for the same reason (clips can have different fps).
+  const frameDurationMsAt = useCallback(
+    (cts: number): number => {
+      if (!imported) return 1000 / 30
+      const clip = imported.clips[clipIndexAtGlobalMs(imported.clips, cts)]
+      return clip?.video.fps ? 1000 / clip.video.fps : 1000 / 30
+    },
+    [imported]
+  )
 
   const fastestLap = useMemo(() => fastestLapRange(crossings), [crossings])
   // One entry per COMPLETED lap, index-aligned with crossings.slice(1) -- lapTimes[i] is the
@@ -283,6 +306,11 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
 
   if (!imported) return null
 
+  const selectedCrossingCts = selectedCrossingIndex !== null ? crossings[selectedCrossingIndex] : undefined
+  const selectedFrameMs = selectedCrossingCts !== undefined ? frameDurationMsAt(selectedCrossingCts) : 0
+  const selectedAdjustmentMs = selectedCrossingIndex !== null ? crossingAdjustmentsMs[String(selectedCrossingIndex)] ?? 0 : 0
+  const selectedAdjustmentFrames = selectedFrameMs > 0 ? Math.round(selectedAdjustmentMs / selectedFrameMs) : 0
+
   const pct = totalDurationMs ? Math.min(100, (currentTimeMs / totalDurationMs) * 100) : 0
   const trimStartPct = totalDurationMs ? Math.min(100, (trimStartMs / totalDurationMs) * 100) : 0
   const trimEndPct = totalDurationMs ? Math.min(100, (trimEndMs / totalDurationMs) * 100) : 100
@@ -335,20 +363,22 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
         {crossings.map((cts, i) => {
           const lapPct = totalDurationMs ? (cts / totalDurationMs) * 100 : 0
           const precedingLapTime = i > 0 ? lapTimes[i - 1] : null
+          const isAdjusted = (crossingAdjustmentsMs[String(i)] ?? 0) !== 0
           return (
             <div
-              key={cts}
-              className="timeline__lap-marker"
+              key={i}
+              className={`timeline__lap-marker${i === selectedCrossingIndex ? ' timeline__lap-marker--selected' : ''}${isAdjusted ? ' timeline__lap-marker--adjusted' : ''}`}
               style={{ left: `${lapPct}%` }}
               onMouseDown={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
+                setSelectedCrossingIndex(i)
                 jumpToLapStart(cts)
               }}
               title={
-                precedingLapTime !== null
+                (precedingLapTime !== null
                   ? `Lap ${i + 1} start (Lap ${i} was ${formatTime(precedingLapTime, true)})`
-                  : `Lap ${i + 1} start`
+                  : `Lap ${i + 1} start`) + (isAdjusted ? ' -- manually adjusted, click to fine-tune' : ' -- click to fine-tune')
               }
             />
           )
@@ -369,6 +399,42 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
       </div>
       <span className="timeline__time timeline__time--dim">{formatTime(totalDurationMs, true)}</span>
     </div>
+    {selectedCrossingIndex !== null && selectedCrossingCts !== undefined && (
+      <div className="timeline-nudge">
+        <span className="timeline-nudge__label">
+          Lap {selectedCrossingIndex + 1} start
+          {selectedAdjustmentFrames !== 0 && (
+            <span className="timeline-nudge__amount"> ({selectedAdjustmentFrames > 0 ? '+' : ''}{selectedAdjustmentFrames} frame{Math.abs(selectedAdjustmentFrames) === 1 ? '' : 's'})</span>
+          )}
+          {' -- crossing registered too early/late? Nudge it here.'}
+        </span>
+        <button
+          className="timeline-nudge__button"
+          onClick={() => nudgeCrossing(selectedCrossingIndex, -selectedFrameMs)}
+          title="1 frame earlier"
+        >
+          ◀ 1 frame
+        </button>
+        <button
+          className="timeline-nudge__button"
+          onClick={() => nudgeCrossing(selectedCrossingIndex, selectedFrameMs)}
+          title="1 frame later"
+        >
+          1 frame ▶
+        </button>
+        <button
+          className="timeline-nudge__button timeline-nudge__button--reset"
+          onClick={() => resetCrossingAdjustment(selectedCrossingIndex)}
+          disabled={selectedAdjustmentFrames === 0}
+          title="Reset to the automatically detected position"
+        >
+          Reset
+        </button>
+        <button className="timeline-nudge__button timeline-nudge__button--close" onClick={() => setSelectedCrossingIndex(null)} title="Close">
+          ×
+        </button>
+      </div>
+    )}
     {speedCurve && (
       <div className="timeline-sparkline" ref={sparklineRef} onMouseDown={handleSparklineMouseDown} title="Speed over time -- click to jump there">
         <canvas className="timeline-sparkline__canvas" ref={sparklineCanvasRef} />

@@ -105,4 +105,57 @@ describe('computeSnap', () => {
     expect(leftSnap.x).toBe(10)
     expect(topSnap.y).toBe(10)
   })
+
+  describe('widget-to-widget snapping (otherRects)', () => {
+    // Placed well away from any frame-based candidate (left/center/right, top/middle/bottom) so
+    // only a sibling-widget candidate can possibly explain a snap in these tests.
+    const otherRects = [{ x: 300, y: 150, w: 120, h: 40 }]
+
+    it('snaps to a sibling widget\'s left edge', () => {
+      const result = computeSnap(303, 300, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
+      expect(result.x).toBe(300)
+      expect(result.guideXPx).toBe(300)
+    })
+
+    it('snaps to a sibling widget\'s right edge (own right edge aligns to it)', () => {
+      const rightAlignedX = 300 + 120 - pixelW // 320
+      const result = computeSnap(rightAlignedX + 2, 300, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
+      expect(result.x).toBe(rightAlignedX)
+      expect(result.guideXPx).toBe(300 + 120)
+    })
+
+    it('snaps to a sibling widget\'s horizontal center', () => {
+      const centerAlignedX = 300 + 120 / 2 - pixelW / 2 // 310
+      const result = computeSnap(centerAlignedX - 1, 300, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
+      expect(result.x).toBe(centerAlignedX)
+      expect(result.guideXPx).toBe(300 + 120 / 2)
+    })
+
+    it('snaps to a sibling widget\'s top/center/bottom on the Y axis the same way', () => {
+      const result = computeSnap(300, 152, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
+      expect(result.y).toBe(150)
+      expect(result.guideYPx).toBe(150)
+    })
+
+    it('does not snap to a sibling widget candidate outside the threshold', () => {
+      const result = computeSnap(340, 300, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
+      expect(result.guideXPx).toBeNull()
+      expect(result.x).toBe(340)
+    })
+
+    it('picks whichever candidate is CLOSEST when both a frame and a widget candidate are in range', () => {
+      // Put a sibling's left edge just 1px further from the pointer than the frame's own left-padding
+      // candidate (10px) -- the closer frame candidate should win, not whichever was found first.
+      const closeRects = [{ x: 21, y: 300, w: 50, h: 50 }]
+      const result = computeSnap(11, 300, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, closeRects)
+      expect(result.x).toBe(10) // frame's left-padding candidate, distance 1
+      expect(result.guideXPx).toBe(10)
+    })
+
+    it('ignores otherRects entirely when the list is empty (default parameter)', () => {
+      const result = computeSnap(303, 300, pixelW, pixelH, frameWidth, frameHeight, paddingFraction)
+      expect(result.guideXPx).toBeNull()
+      expect(result.x).toBe(303)
+    })
+  })
 })

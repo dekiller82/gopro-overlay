@@ -3,6 +3,12 @@ export interface LatLon {
   lon: number
 }
 
+/** Manual per-crossing time correction (ms, signed), keyed by the crossing's 0-based index in the
+ *  array `detectLapCrossings` returns -- see shared/telemetry/laps.ts. Canonical home here (not
+ *  laps.ts) since it's persisted in ProjectPayload/the project file schema, same reasoning as
+ *  LatLon; laps.ts re-exports it for the call sites that only care about lap detection. */
+export type CrossingAdjustments = Record<string, number>
+
 export interface TelemetrySample {
   /** Milliseconds from the start of the video, aligned with HTMLVideoElement.currentTime * 1000 */
   cts: number
@@ -202,6 +208,13 @@ export interface ProjectPayload {
    *  mode, sectorTimer, and any future widget with the same need) -- set once, used everywhere,
    *  instead of each widget needing its own copy. */
   startFinish: LatLon | null
+  /** Manual per-crossing time corrections (ms, signed), keyed by the crossing's 0-based index in
+   *  the array `detectLapCrossings` returns for the current startFinish point -- see
+   *  shared/telemetry/laps.ts's CrossingAdjustments. Corrects the local-minimum heuristic
+   *  registering a crossing a few frames early/late on a particular lap. Keyed to THIS startFinish
+   *  point specifically -- cleared whenever it changes, since a different point recomputes a
+   *  different crossings array where the same index may no longer mean the same lap. */
+  crossingAdjustmentsMs: CrossingAdjustments
   /** Whole-sequence trim (global ms, spanning all clips) -- cuts dead time from the very start of
    *  the first clip and/or the very end of the last clip. Does NOT affect lap/sector detection
    *  (physically tied to GPS crossings, independent of any later edit decision) -- only changes

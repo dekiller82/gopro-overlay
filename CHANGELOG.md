@@ -2,6 +2,21 @@
 
 All notable changes to GoPro Overlay are documented here.
 
+## [0.1.9] - 2026-07-21
+
+### Added
+- **Widget-to-widget alignment/snapping** — dragging a widget now also snaps to other widgets' own
+  left/center/right and top/middle/bottom edges, not just the frame's own edges/center. Whichever
+  candidate is closest wins, and a live guide line shows exactly where.
+- **Per-lap start/finish crossing nudge** — the automatic lap-crossing detection can register a
+  crossing a few frames early or late on a given lap (GPS noise, an off-angle pass near the line).
+  Click a lap marker on the timeline to select it, then nudge it ±1 frame at a time with a live
+  offset readout and a Reset button — every widget, the export, and "Export Best Lap" all pick up
+  the correction immediately.
+- **Delivery presets for export** — a dropdown next to Export Video bundles resolution + bitrate for
+  YouTube (4K/1080p), Instagram/TikTok/Reels, and Twitter/X, alongside the existing default "Source
+  quality" (unchanged CRF-based, native-resolution) export.
+
 ## [0.1.8] - 2026-07-21
 
 ### Fixed

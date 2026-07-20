@@ -5,6 +5,7 @@ import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
 import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
 import { formatTime } from '@shared/format'
+import { DELIVERY_PRESETS, SOURCE_QUALITY_PRESET_ID } from '@shared/export/deliveryPresets'
 import type { ImportProgress, ProjectPayload, RecentProject, UpdateCheckResult } from '@shared/types'
 
 const LAST_SEEN_VERSION_KEY = 'gpo-last-seen-version'
@@ -52,6 +53,8 @@ function App(): React.JSX.Element {
   const updateImportedClips = useProjectStore((s) => s.updateImportedClips)
   const startFinish = useProjectStore((s) => s.startFinish)
   const setStartFinish = useProjectStore((s) => s.setStartFinish)
+  const crossingAdjustmentsMs = useProjectStore((s) => s.crossingAdjustmentsMs)
+  const setCrossingAdjustmentsMs = useProjectStore((s) => s.setCrossingAdjustmentsMs)
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   const setTrim = useProjectStore((s) => s.setTrim)
@@ -70,6 +73,10 @@ function App(): React.JSX.Element {
     { phase: 'idle' } | { phase: 'exporting'; done: number; total: number } | { phase: 'done'; path: string } | { phase: 'error'; message: string }
   >({ phase: 'idle' })
   const [exportEncoderLabel, setExportEncoderLabel] = useState<string | null>(null)
+  // SOURCE_QUALITY_PRESET_ID is a UI-only sentinel, not a real preset id -- selecting it means
+  // "no delivery preset," so window.api.exportVideo gets undefined and behaves exactly as before
+  // this control existed (native resolution, quality-based CRF encode).
+  const [exportPresetId, setExportPresetId] = useState<string>(SOURCE_QUALITY_PRESET_ID)
   const [autosaveAvailable, setAutosaveAvailable] = useState(false)
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
   const [changelog, setChangelog] = useState('')
@@ -139,8 +146,8 @@ function App(): React.JSX.Element {
   // ONCE and actually fires every 60s of wall-clock time -- putting these fast-changing values in
   // this effect's own deps would tear down and restart the timer on every single edit, and a user
   // who never pauses editing for a full 60s would never get an autosave at all.
-  const latestAutosaveInputRef = useRef({ imported, widgets, startFinish, trimStartMs, trimEndMs })
-  latestAutosaveInputRef.current = { imported, widgets, startFinish, trimStartMs, trimEndMs }
+  const latestAutosaveInputRef = useRef({ imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs })
+  latestAutosaveInputRef.current = { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs }
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60_000
     const interval = setInterval(() => {
@@ -221,6 +228,7 @@ function App(): React.JSX.Element {
       setImported(project.imported)
       loadWidgets(project.widgets)
       setStartFinish(project.startFinish)
+      setCrossingAdjustmentsMs(project.crossingAdjustmentsMs)
       setTrim(project.trimStartMs, project.trimEndMs)
       setStatus('idle')
       refreshRecentProjects()
@@ -240,6 +248,7 @@ function App(): React.JSX.Element {
       setImported(project.imported)
       loadWidgets(project.widgets)
       setStartFinish(project.startFinish)
+      setCrossingAdjustmentsMs(project.crossingAdjustmentsMs)
       setTrim(project.trimStartMs, project.trimEndMs)
       setStatus('idle')
     } catch (err) {
@@ -263,6 +272,7 @@ function App(): React.JSX.Element {
       setImported(project.imported)
       loadWidgets(project.widgets)
       setStartFinish(project.startFinish)
+      setCrossingAdjustmentsMs(project.crossingAdjustmentsMs)
       setTrim(project.trimStartMs, project.trimEndMs)
       setAutosaveAvailable(false)
       setStatus('idle')
@@ -282,7 +292,7 @@ function App(): React.JSX.Element {
     if (!imported) return
     setError(null)
     try {
-      const path = await window.api.saveProject({ imported, widgets, startFinish, trimStartMs, trimEndMs })
+      const path = await window.api.saveProject({ imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs })
       if (path) {
         setSavedPath(path)
         refreshRecentProjects()
@@ -298,7 +308,10 @@ function App(): React.JSX.Element {
     setExportEncoderLabel(null)
     setExportState({ phase: 'exporting', done: 0, total: 1 })
     try {
-      const path = await window.api.exportVideo({ imported, widgets, startFinish, trimStartMs, trimEndMs })
+      const path = await window.api.exportVideo(
+        { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs },
+        exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
+      )
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
     } catch (err) {
       console.error('[export] failed:', err)
@@ -310,8 +323,8 @@ function App(): React.JSX.Element {
   // TelemetrySampler), recomputed only when the telemetry/start-finish point actually change.
   const fastestLap = useMemo(() => {
     if (!imported || !startFinish) return null
-    return fastestLapRange(detectLapCrossings(imported.telemetry.samples, startFinish))
-  }, [imported, startFinish])
+    return fastestLapRange(detectLapCrossings(imported.telemetry.samples, startFinish, undefined, undefined, crossingAdjustmentsMs))
+  }, [imported, startFinish, crossingAdjustmentsMs])
 
   const [showBestLapExportForm, setShowBestLapExportForm] = useState(false)
   const [bestLapPaddingBeforeSec, setBestLapPaddingBeforeSec] = useState(5)
@@ -329,13 +342,17 @@ function App(): React.JSX.Element {
     setExportEncoderLabel(null)
     setExportState({ phase: 'exporting', done: 0, total: 1 })
     try {
-      const path = await window.api.exportVideo({
-        imported,
-        widgets,
-        startFinish,
-        trimStartMs: clipTrimStartMs,
-        trimEndMs: clipTrimEndMs
-      })
+      const path = await window.api.exportVideo(
+        {
+          imported,
+          widgets,
+          startFinish,
+          crossingAdjustmentsMs,
+          trimStartMs: clipTrimStartMs,
+          trimEndMs: clipTrimEndMs
+        },
+        exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
+      )
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
     } catch (err) {
       console.error('[export best lap] failed:', err)
@@ -408,6 +425,20 @@ function App(): React.JSX.Element {
             >
               🏁 Export Best Lap…
             </button>
+            <select
+              className="export-preset-select"
+              value={exportPresetId}
+              onChange={(e) => setExportPresetId(e.target.value)}
+              disabled={isExporting}
+              title="Delivery preset -- resolution/bitrate bundled for a specific platform. Source quality keeps the video at its native resolution."
+            >
+              <option value={SOURCE_QUALITY_PRESET_ID}>Source quality</option>
+              {DELIVERY_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id} title={preset.description}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
             <button
               className="import-button"
               onClick={handleExport}

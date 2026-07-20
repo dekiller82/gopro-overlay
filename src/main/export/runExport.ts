@@ -1,6 +1,6 @@
 import { spawn } from 'child_process'
 import ffmpegPathRaw from 'ffmpeg-static'
-import type { ClipInfo, LatLon, WidgetInstance } from '../../shared/types'
+import type { ClipInfo, CrossingAdjustments, LatLon, WidgetInstance } from '../../shared/types'
 import type { TelemetrySampler } from '../../shared/telemetry/sampleAt'
 import { createFrameRenderer } from './frameRenderer'
 import { selectVideoEncoder, CPU_ENCODER, type VideoEncoder } from './gpuEncoder'
@@ -13,6 +13,14 @@ export interface ExportSettings {
   crf: number
   /** Use a hardware encoder (NVENC/QSV/AMF) if this machine actually has a working one; falls back to libx264 otherwise. Default true. */
   preferGpu?: boolean
+  /** When set (a delivery preset was chosen, e.g. "YouTube 1080p"), switches rate control from
+   *  quality-based (crf) to target-bitrate mode -- see gpuEncoder.ts's bitrateArgs. Undefined means
+   *  the default "source quality" export, unchanged from before this field existed. */
+  videoBitrateKbps?: number
+  /** Only meaningful alongside videoBitrateKbps -- forces an AAC re-encode (even for the otherwise
+   *  stream-copyable single-clip/no-trim case) so the delivery preset's audio bitrate is actually
+   *  applied. Undefined (the default export) leaves audio untouched, exactly as before. */
+  audioBitrateKbps?: number
 }
 
 export interface RunExportOptions {
@@ -22,6 +30,8 @@ export interface RunExportOptions {
   sampler: TelemetrySampler
   /** Shared by every widget that needs lap/sector detection. */
   startFinish: LatLon | null
+  /** Manual per-crossing time corrections for startFinish -- see shared/types.ts's CrossingAdjustments. */
+  crossingAdjustmentsMs: CrossingAdjustments
   /** Whole-sequence trim, global ms spanning all clips. */
   trimStartMs: number
   trimEndMs: number
@@ -36,6 +46,43 @@ export interface RunExportOptions {
 function clipLocalSeconds(clip: ClipInfo, globalMs: number): number {
   const localMs = globalMs - clip.startOffsetMs
   return Math.max(0, Math.min(clip.video.durationMs, localMs)) / 1000
+}
+
+/** AAC bitrate flag for a delivery preset, if one applies -- ffmpeg's own AAC default (~128kbps)
+ *  is used when audioBitrateKbps isn't set, same as before this option existed. */
+function audioBitrateArgs(settings: ExportSettings): string[] {
+  return settings.audioBitrateKbps ? ['-b:a', `${settings.audioBitrateKbps}k`] : []
+}
+
+/** Case A's (single clip, no trim) audio codec args. When no delivery preset is active
+ *  (videoBitrateKbps undefined), this is EXACTLY the original unconditional `-c:a copy` -- a plain
+ *  export stays byte-for-byte unchanged regardless of hasAudio, matching case A's existing
+ *  `0:a?` map (ffmpeg's own `?` already skips cleanly when there's no audio stream). A delivery
+ *  preset forces an AAC re-encode instead, since it implies a controlled deliverable rather than
+ *  preserving the master's own audio untouched -- inert if the clip has no audio at all. */
+function resolveStreamCopyableAudioArgs(settings: ExportSettings): string[] {
+  return settings.videoBitrateKbps != null ? ['-c:a', 'aac', ...audioBitrateArgs(settings)] : ['-c:a', 'copy']
+}
+
+/** Cases B/C's (trim and/or multi-clip concat) audio codec args -- these already forced an AAC
+ *  re-encode before delivery presets existed (trim/concat can't stream-copy), so the only change is
+ *  adding a preset's own target bitrate on top when one is active. */
+function resolveReencodedAudioArgs(hasAudio: boolean, settings: ExportSettings): string[] {
+  return hasAudio ? ['-c:a', 'aac', ...audioBitrateArgs(settings)] : ['-an']
+}
+
+/**
+ * A `,scale=W:H` filter suffix for a clip's own video chain, or '' when the clip is ALREADY that
+ * exact size -- ffmpeg's `overlay` filter takes its output size from its base (bottom) input, which
+ * is the source clip decoded at its own native resolution, NOT settings.width/height by itself.
+ * Without this, a delivery preset's smaller settings.width/height would only resize the rendered
+ * *overlay* frame (our own rawvideo pipe) while the actual source video underneath stayed at full
+ * native resolution -- the overlay would end up covering just a small corner of an unshrunk frame.
+ * Omitted entirely (not just a no-op scale=W:H) when dimensions already match, preserving the
+ * default "source quality" export's byte-for-byte-unchanged filter graph.
+ */
+function scaleSuffixIfNeeded(clip: ClipInfo, settings: ExportSettings): string {
+  return clip.video.width === settings.width && clip.video.height === settings.height ? '' : `,scale=${settings.width}:${settings.height}`
 }
 
 /**
@@ -75,25 +122,28 @@ function buildFfmpegArgs(
   let audioMapLabel: string | null
   let audioCodecArgs: string[]
 
-  if (clips.length === 1 && !needsTrim) {
+  if (clips.length === 1 && !needsTrim && scaleSuffixIfNeeded(clips[0], settings) === '') {
     // Case A: exactly the ORIGINAL single-clip path, byte-for-byte unchanged -- zero risk to any
     // existing single-clip project. `0:a?` (bare stream specifier, not a filter-graph label) lets
-    // ffmpeg's own `?` skip audio gracefully if the clip happens to have none.
+    // ffmpeg's own `?` skip audio gracefully if the clip happens to have none. Only reachable when
+    // no delivery preset needs to actually resize the output -- otherwise falls through to case B's
+    // graph shape (which already has a real video filter chain to attach `scale=` to).
     filterComplex = `[${overlayInputIndex}:v]format=rgba[ov];[0:v][ov]overlay=0:0:format=auto[v]`
     videoMapLabel = '[v]'
     audioMapLabel = '0:a?'
-    audioCodecArgs = ['-c:a', 'copy']
+    audioCodecArgs = resolveStreamCopyableAudioArgs(settings)
   } else if (clips.length === 1) {
-    // Case B: single clip, trimmed. Trim forces a decode, so audio can't stay stream-copied.
+    // Case B: single clip, trimmed and/or resized for a delivery preset. Either reason forces a
+    // decode, so audio can't stay stream-copied.
     const startSec = clipLocalSeconds(clips[0], trimStartMs)
     const endSec = clipLocalSeconds(clips[0], trimEndMs)
-    const parts = [`[0:v]trim=start=${startSec}:end=${endSec},setpts=PTS-STARTPTS[vtrim]`]
+    const parts = [`[0:v]trim=start=${startSec}:end=${endSec},setpts=PTS-STARTPTS${scaleSuffixIfNeeded(clips[0], settings)}[vtrim]`]
     if (hasAudio) parts.push(`[0:a]atrim=start=${startSec}:end=${endSec},asetpts=PTS-STARTPTS[atrim]`)
     parts.push(`[${overlayInputIndex}:v]format=rgba[ov]`, '[vtrim][ov]overlay=0:0:format=auto[v]')
     filterComplex = parts.join(';')
     videoMapLabel = '[v]'
     audioMapLabel = hasAudio ? '[atrim]' : null
-    audioCodecArgs = hasAudio ? ['-c:a', 'aac'] : ['-an']
+    audioCodecArgs = resolveReencodedAudioArgs(hasAudio, settings)
   } else {
     // Case C: N>1 clips, concatenated. Start-trim only applies to the first clip, end-trim only
     // to the last (both are safe no-ops when not actually needed, via clipLocalSeconds' clamping,
@@ -107,21 +157,22 @@ function buildFfmpegArgs(
       const vLabel = `v${i}`
       const aLabel = `a${i}`
 
+      const scaleSuffix = scaleSuffixIfNeeded(clip, settings)
       if (isFirst && isLast) {
         const startSec = clipLocalSeconds(clip, trimStartMs)
         const endSec = clipLocalSeconds(clip, trimEndMs)
-        segmentParts.push(`[${i}:v]trim=start=${startSec}:end=${endSec},setpts=PTS-STARTPTS[${vLabel}]`)
+        segmentParts.push(`[${i}:v]trim=start=${startSec}:end=${endSec},setpts=PTS-STARTPTS${scaleSuffix}[${vLabel}]`)
         if (hasAudio) segmentParts.push(`[${i}:a]atrim=start=${startSec}:end=${endSec},asetpts=PTS-STARTPTS[${aLabel}]`)
       } else if (isFirst) {
         const startSec = clipLocalSeconds(clip, trimStartMs)
-        segmentParts.push(`[${i}:v]trim=start=${startSec},setpts=PTS-STARTPTS[${vLabel}]`)
+        segmentParts.push(`[${i}:v]trim=start=${startSec},setpts=PTS-STARTPTS${scaleSuffix}[${vLabel}]`)
         if (hasAudio) segmentParts.push(`[${i}:a]atrim=start=${startSec},asetpts=PTS-STARTPTS[${aLabel}]`)
       } else if (isLast) {
         const endSec = clipLocalSeconds(clip, trimEndMs)
-        segmentParts.push(`[${i}:v]trim=end=${endSec},setpts=PTS-STARTPTS[${vLabel}]`)
+        segmentParts.push(`[${i}:v]trim=end=${endSec},setpts=PTS-STARTPTS${scaleSuffix}[${vLabel}]`)
         if (hasAudio) segmentParts.push(`[${i}:a]atrim=end=${endSec},asetpts=PTS-STARTPTS[${aLabel}]`)
       } else {
-        segmentParts.push(`[${i}:v]setpts=PTS-STARTPTS[${vLabel}]`)
+        segmentParts.push(`[${i}:v]setpts=PTS-STARTPTS${scaleSuffix}[${vLabel}]`)
         if (hasAudio) segmentParts.push(`[${i}:a]asetpts=PTS-STARTPTS[${aLabel}]`)
       }
 
@@ -136,7 +187,7 @@ function buildFfmpegArgs(
     filterComplex = segmentParts.join(';')
     videoMapLabel = '[vout]'
     audioMapLabel = hasAudio ? '[aconcat]' : null
-    audioCodecArgs = hasAudio ? ['-c:a', 'aac'] : ['-an']
+    audioCodecArgs = resolveReencodedAudioArgs(hasAudio, settings)
   }
 
   const args = [
@@ -159,7 +210,8 @@ function buildFfmpegArgs(
   ]
   if (audioMapLabel) args.push('-map', audioMapLabel)
   args.push('-frames:v', String(totalFrames))
-  args.push('-c:v', encoder.codec, ...encoder.qualityArgs(settings.crf), '-pix_fmt', 'yuv420p', ...audioCodecArgs, outputPath)
+  const videoRateControlArgs = settings.videoBitrateKbps != null ? encoder.bitrateArgs(settings.videoBitrateKbps) : encoder.qualityArgs(settings.crf)
+  args.push('-c:v', encoder.codec, ...videoRateControlArgs, '-pix_fmt', 'yuv420p', ...audioCodecArgs, outputPath)
   return args
 }
 
@@ -237,7 +289,7 @@ function runWithEncoder(
 }
 
 export async function runExport(options: RunExportOptions): Promise<void> {
-  const { clips, outputPath, widgets, sampler, startFinish, trimStartMs, trimEndMs, settings, onProgress, onEncoderSelected } = options
+  const { clips, outputPath, widgets, sampler, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, settings, onProgress, onEncoderSelected } = options
 
   const ffmpegPath = resolveUnpackedBinaryPath(ffmpegPathRaw)
   if (!ffmpegPath) throw new Error('Bundled ffmpeg binary not found for this platform')
@@ -246,7 +298,7 @@ export async function runExport(options: RunExportOptions): Promise<void> {
   const resolvedFfmpegPath: string = ffmpegPath
 
   const totalFrames = Math.max(1, Math.round(((trimEndMs - trimStartMs) / 1000) * settings.fps))
-  const renderFrame = await createFrameRenderer(settings.width, settings.height, widgets, sampler, startFinish, trimEndMs, trimStartMs)
+  const renderFrame = await createFrameRenderer(settings.width, settings.height, widgets, sampler, startFinish, crossingAdjustmentsMs, trimEndMs, trimStartMs)
 
   const encoder = await selectVideoEncoder(resolvedFfmpegPath, settings.preferGpu ?? true)
   console.log(`[export] using video encoder: ${encoder.label} (${encoder.codec})`)

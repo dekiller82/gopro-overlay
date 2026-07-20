@@ -18,7 +18,8 @@ const api = {
   loadProject: (): Promise<ProjectPayload | null> => ipcRenderer.invoke('project:load'),
   loadProjectFromPath: (projectPath: string): Promise<ProjectPayload> => ipcRenderer.invoke('project:load-path', projectPath),
   listRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke('recent:list'),
-  exportVideo: (payload: ProjectPayload): Promise<string | null> => ipcRenderer.invoke('export:start', payload),
+  exportVideo: (payload: ProjectPayload, deliveryPresetId?: string): Promise<string | null> =>
+    ipcRenderer.invoke('export:start', payload, deliveryPresetId),
   listLayoutPresets: (): Promise<WidgetLayoutPreset[]> => ipcRenderer.invoke('layouts:list'),
   saveLayoutPreset: (name: string, widgets: WidgetInstance[]): Promise<WidgetLayoutPreset[]> =>
     ipcRenderer.invoke('layouts:save', name, widgets),

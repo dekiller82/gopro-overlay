@@ -1,9 +1,9 @@
-import type { TelemetrySample, LatLon } from '../types'
+import type { TelemetrySample, LatLon, CrossingAdjustments } from '../types'
 import { findBracketIndex } from './interpolate'
 
-// Re-exported for existing call sites -- canonical definition now lives in shared/types.ts since
-// it's used by the global start/finish line (ProjectPayload), not just lap detection.
-export type { LatLon }
+// Re-exported for existing call sites -- canonical definitions live in shared/types.ts since both
+// are persisted in ProjectPayload/the project file schema, not just used by lap detection.
+export type { LatLon, CrossingAdjustments }
 
 export interface LapHistoryEntry {
   lapNumber: number
@@ -50,17 +50,37 @@ export function nearestLatLon(samples: TelemetrySample[], cts: number): LatLon |
   return { lat: samples[chosen].lat, lon: samples[chosen].lon }
 }
 
+/** Applies manual per-crossing nudges on top of the raw detected crossings, clamping each adjusted
+ *  value so it can never cross past its own neighbor's ORIGINAL (pre-adjustment) position -- a
+ *  nudge is meant to correct a few frames of detection noise, not reorder laps. Pure post-process
+ *  step, kept separate from the detection loop itself so the loop's own minLapMs gap logic always
+ *  runs against the real, unadjusted samples. */
+function applyCrossingAdjustments(rawCrossings: number[], adjustments: CrossingAdjustments): number[] {
+  if (Object.keys(adjustments).length === 0) return rawCrossings
+
+  const adjusted = rawCrossings.map((cts, i) => cts + (adjustments[String(i)] ?? 0))
+  for (let i = 0; i < adjusted.length; i++) {
+    const lowerBound = i > 0 ? adjusted[i - 1] + 1 : -Infinity
+    const upperBound = i < rawCrossings.length - 1 ? rawCrossings[i + 1] - 1 : Infinity
+    adjusted[i] = Math.min(Math.max(adjusted[i], lowerBound), upperBound)
+  }
+  return adjusted
+}
+
 /**
  * Detects start/finish crossings as local minima in distance-to-point that dip under
  * `thresholdMeters`, requiring at least `minLapMs` between consecutive crossings so a slow
  * pass near the line (or GPS noise) doesn't register as multiple laps. Heuristic, not a proper
  * timing loop -- tune the threshold if a track's pit/paddock passes close to the line.
+ *
+ * `adjustments` applies manual per-crossing corrections (see CrossingAdjustments) after detection.
  */
 export function detectLapCrossings(
   samples: TelemetrySample[],
   startFinish: LatLon,
   thresholdMeters = DEFAULT_THRESHOLD_METERS,
-  minLapMs = DEFAULT_MIN_LAP_MS
+  minLapMs = DEFAULT_MIN_LAP_MS,
+  adjustments: CrossingAdjustments = {}
 ): number[] {
   if (samples.length < 3) return []
 
@@ -78,7 +98,7 @@ export function detectLapCrossings(
       }
     }
   }
-  return crossings
+  return applyCrossingAdjustments(crossings, adjustments)
 }
 
 /** Lap durations between consecutive crossings; the out-lap before the first crossing is excluded. */

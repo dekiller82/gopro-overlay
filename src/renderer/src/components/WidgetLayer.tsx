@@ -21,6 +21,7 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
   const widgets = useWidgetStore((s) => s.widgets)
   const selectWidget = useWidgetStore((s) => s.selectWidget)
   const startFinish = useProjectStore((s) => s.startFinish)
+  const crossingAdjustmentsMs = useProjectStore((s) => s.crossingAdjustmentsMs)
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   // Only one widget can be dragged at a time, so a single shared slot (rather than per-widget state)
@@ -37,8 +38,8 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
   // once here rather than duplicated per widget instance. Crossings/boundaries only depend on the
   // telemetry + chosen point, not on currentTimeMs, so this doesn't redo the O(n) scan every frame.
   const crossings = useMemo(
-    () => (sampler && startFinish ? detectLapCrossings(sampler.samples, startFinish) : null),
-    [sampler, startFinish]
+    () => (sampler && startFinish ? detectLapCrossings(sampler.samples, startFinish, undefined, undefined, crossingAdjustmentsMs) : null),
+    [sampler, startFinish, crossingAdjustmentsMs]
   )
   const sectorBoundaries = useMemo(
     () => (sampler && crossings ? computeLapSectors(sampler.samples, crossings) : null),
@@ -120,6 +121,7 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
         <WidgetBox
           key={widget.id}
           widget={widget}
+          allWidgets={widgets}
           frameWidth={frameWidth}
           frameHeight={frameHeight}
           sampler={sampler}

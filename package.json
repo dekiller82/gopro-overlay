@@ -1,6 +1,6 @@
 {
   "name": "gopro-overlay",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Customizable GoPro telemetry overlay editor and exporter",
   "main": "./out/main/index.js",
   "author": "dekiller82 <erenerikaydogan@gmail.com>",

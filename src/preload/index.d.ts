@@ -15,7 +15,9 @@ interface Api {
   loadProject: () => Promise<ProjectPayload | null>
   loadProjectFromPath: (projectPath: string) => Promise<ProjectPayload>
   listRecentProjects: () => Promise<RecentProject[]>
-  exportVideo: (payload: ProjectPayload) => Promise<string | null>
+  /** deliveryPresetId: an id from shared/export/deliveryPresets.ts, or omitted/undefined for the
+   *  default "source quality" export (unchanged, quality-based CRF encode at the source resolution). */
+  exportVideo: (payload: ProjectPayload, deliveryPresetId?: string) => Promise<string | null>
   listLayoutPresets: () => Promise<WidgetLayoutPreset[]>
   saveLayoutPreset: (name: string, widgets: WidgetInstance[]) => Promise<WidgetLayoutPreset[]>
   deleteLayoutPreset: (id: string) => Promise<WidgetLayoutPreset[]>

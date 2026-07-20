@@ -3,10 +3,22 @@ import { mkdtemp, rm } from 'fs/promises'
 import os from 'os'
 import path from 'path'
 
+/** VBV-style peak/buffer multipliers shared by every encoder's bitrateArgs below -- a single-pass
+ *  target-bitrate encode needs slack above the target to absorb complex frames without visible
+ *  quality dips, and a buffer large enough that the rate controller isn't fighting it every frame.
+ *  Not two-pass (would ~double export time for a closer bitrate match) -- delivery presets aim for
+ *  "close to the platform's own recommendation," not an exact file size. */
+const BITRATE_MAXRATE_MULTIPLIER = 1.5
+const BITRATE_BUFSIZE_MULTIPLIER = 2
+
 export interface VideoEncoder {
   codec: string
   /** Quality/rate-control flags for this encoder; CRF isn't universal across GPU encoders. */
   qualityArgs: (crf: number) => string[]
+  /** Target-bitrate rate-control flags (delivery presets, e.g. "YouTube 1080p") -- a different
+   *  rate-control mode from qualityArgs above, not just a different number; mutually exclusive
+   *  with it in a single ffmpeg invocation. */
+  bitrateArgs: (kbps: number) => string[]
   label: string
   /** ffmpeg -hwaccel value to pair with this encoder for GPU-accelerated decode too, if this
    *  machine was smoke-tested to actually support it. Undefined means decode stays on CPU while
@@ -22,6 +34,18 @@ const GPU_ENCODER_CANDIDATES: VideoEncoder[] = [
     codec: 'h264_nvenc',
     label: 'NVIDIA NVENC',
     qualityArgs: (crf) => ['-preset', 'p5', '-rc', 'vbr', '-cq', String(crf), '-b:v', '0'],
+    bitrateArgs: (kbps) => [
+      '-preset',
+      'p5',
+      '-rc',
+      'vbr',
+      '-b:v',
+      `${kbps}k`,
+      '-maxrate',
+      `${Math.round(kbps * BITRATE_MAXRATE_MULTIPLIER)}k`,
+      '-bufsize',
+      `${Math.round(kbps * BITRATE_BUFSIZE_MULTIPLIER)}k`
+    ],
     // NVDEC pairs reliably with NVENC across driver versions and was verified via real CLI runs
     // during this app's initial export work -- trusted unconditionally, unlike QSV below.
     decodeHwaccel: 'cuda'
@@ -29,12 +53,32 @@ const GPU_ENCODER_CANDIDATES: VideoEncoder[] = [
   {
     codec: 'h264_qsv',
     label: 'Intel Quick Sync',
-    qualityArgs: (crf) => ['-preset', 'medium', '-global_quality', String(crf)]
+    qualityArgs: (crf) => ['-preset', 'medium', '-global_quality', String(crf)],
+    bitrateArgs: (kbps) => [
+      '-preset',
+      'medium',
+      '-b:v',
+      `${kbps}k`,
+      '-maxrate',
+      `${Math.round(kbps * BITRATE_MAXRATE_MULTIPLIER)}k`,
+      '-bufsize',
+      `${Math.round(kbps * BITRATE_BUFSIZE_MULTIPLIER)}k`
+    ]
   },
   {
     codec: 'h264_amf',
     label: 'AMD AMF',
-    qualityArgs: (crf) => ['-quality', 'balanced', '-rc', 'cqp', '-qp_i', String(crf), '-qp_p', String(crf)]
+    qualityArgs: (crf) => ['-quality', 'balanced', '-rc', 'cqp', '-qp_i', String(crf), '-qp_p', String(crf)],
+    bitrateArgs: (kbps) => [
+      '-quality',
+      'balanced',
+      '-rc',
+      'vbr_peak',
+      '-b:v',
+      `${kbps}k`,
+      '-maxrate',
+      `${Math.round(kbps * BITRATE_MAXRATE_MULTIPLIER)}k`
+    ]
     // No decodeHwaccel probe here: AMD's decode hwaccel pairing is platform-dependent (d3d11va on
     // Windows, vaapi on Linux) and untested on any real AMD machine. Encode-only GPU acceleration
     // is still a real win; guessing the wrong decode flag would risk breaking the export outright.
@@ -44,7 +88,17 @@ const GPU_ENCODER_CANDIDATES: VideoEncoder[] = [
 export const CPU_ENCODER: VideoEncoder = {
   codec: 'libx264',
   label: 'CPU (libx264)',
-  qualityArgs: (crf) => ['-preset', 'medium', '-crf', String(crf)]
+  qualityArgs: (crf) => ['-preset', 'medium', '-crf', String(crf)],
+  bitrateArgs: (kbps) => [
+    '-preset',
+    'medium',
+    '-b:v',
+    `${kbps}k`,
+    '-maxrate',
+    `${Math.round(kbps * BITRATE_MAXRATE_MULTIPLIER)}k`,
+    '-bufsize',
+    `${Math.round(kbps * BITRATE_BUFSIZE_MULTIPLIER)}k`
+  ]
 }
 
 /** Runs one throwaway ffmpeg invocation to completion, ignoring its output; resolves true iff it exits 0. */

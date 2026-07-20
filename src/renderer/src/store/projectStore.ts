@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ImportResult, LatLon } from '@shared/types'
+import type { CrossingAdjustments, ImportResult, LatLon } from '@shared/types'
 
 interface ProjectState {
   imported: ImportResult | null
@@ -9,6 +9,12 @@ interface ProjectState {
   /** Shared by every widget that needs lap/sector detection (timer in laps mode, sectorTimer, and
    *  any future widget with the same need) -- set once, used everywhere. */
   startFinish: LatLon | null
+  /** Manual per-crossing time corrections for startFinish, keyed by crossing index (see
+   *  shared/types.ts's CrossingAdjustments) -- corrects the lap-crossing heuristic registering a
+   *  crossing a few frames early/late on a particular lap. Reset whenever startFinish changes,
+   *  since a different point recomputes a different crossings array where the same index may no
+   *  longer refer to the same lap. */
+  crossingAdjustmentsMs: CrossingAdjustments
   /** Whole-sequence trim, global ms spanning all clips. */
   trimStartMs: number
   trimEndMs: number
@@ -22,6 +28,14 @@ interface ProjectState {
   setCurrentTimeMs: (ms: number) => void
   setIsPlaying: (playing: boolean) => void
   setStartFinish: (latLon: LatLon | null) => void
+  /** Loading a saved project restores its own crossing adjustments verbatim (unlike setStartFinish,
+   *  which always resets them -- a freshly loaded project didn't just "change" its start/finish
+   *  point, it's opening with whatever was already saved for it). */
+  setCrossingAdjustmentsMs: (adjustments: CrossingAdjustments) => void
+  /** Nudges one crossing's correction by deltaMs (additive -- repeated clicks accumulate). */
+  nudgeCrossing: (index: number, deltaMs: number) => void
+  /** Clears a single crossing's correction back to zero. */
+  resetCrossingAdjustment: (index: number) => void
   setTrim: (trimStartMs: number, trimEndMs: number) => void
 }
 
@@ -30,6 +44,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   currentTimeMs: 0,
   isPlaying: false,
   startFinish: null,
+  crossingAdjustmentsMs: {},
   trimStartMs: 0,
   trimEndMs: 0,
   setImported: (imported) =>
@@ -38,6 +53,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
       currentTimeMs: 0,
       isPlaying: false,
       startFinish: null,
+      crossingAdjustmentsMs: {},
       trimStartMs: 0,
       trimEndMs: imported?.telemetry.videoDurationMs ?? 0
     }),
@@ -51,6 +67,21 @@ export const useProjectStore = create<ProjectState>((set) => ({
     })),
   setCurrentTimeMs: (currentTimeMs) => set({ currentTimeMs }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
-  setStartFinish: (startFinish) => set({ startFinish }),
+  setStartFinish: (startFinish) => set({ startFinish, crossingAdjustmentsMs: {} }),
+  setCrossingAdjustmentsMs: (crossingAdjustmentsMs) => set({ crossingAdjustmentsMs }),
+  nudgeCrossing: (index, deltaMs) =>
+    set((state) => {
+      const key = String(index)
+      const current = state.crossingAdjustmentsMs[key] ?? 0
+      return { crossingAdjustmentsMs: { ...state.crossingAdjustmentsMs, [key]: current + deltaMs } }
+    }),
+  resetCrossingAdjustment: (index) =>
+    set((state) => {
+      const key = String(index)
+      if (!(key in state.crossingAdjustmentsMs)) return {}
+      const next = { ...state.crossingAdjustmentsMs }
+      delete next[key]
+      return { crossingAdjustmentsMs: next }
+    }),
   setTrim: (trimStartMs, trimEndMs) => set({ trimStartMs, trimEndMs })
 }))

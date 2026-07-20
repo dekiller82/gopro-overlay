@@ -65,6 +65,21 @@ body {
   cursor: default;
 }
 
+.export-preset-select {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.export-preset-select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .app-shell__error {
   color: var(--accent);
   font-size: 13px;
@@ -453,6 +468,58 @@ body {
 
 .timeline__lap-marker:hover {
   background: #fff;
+}
+
+.timeline__lap-marker--adjusted {
+  background: #ff9f0a;
+}
+
+.timeline__lap-marker--selected {
+  width: 4px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.timeline-nudge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.timeline-nudge__label {
+  font-size: 12px;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.timeline-nudge__amount {
+  color: #ff9f0a;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.timeline-nudge__button {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.timeline-nudge__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.timeline-nudge__button--close {
+  padding: 4px 8px;
+  color: var(--text-dim);
 }
 
 .timeline__trim-mask {

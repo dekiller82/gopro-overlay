@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Rnd, type RndDragCallback, type RndResizeCallback } from 'react-rnd'
 import type { WidgetInstance } from '@shared/types'
 import type { TelemetrySampler } from '@shared/telemetry/sampleAt'
@@ -20,6 +20,9 @@ export interface ActiveGuides {
 
 interface Props {
   widget: WidgetInstance
+  /** Every widget in the layout (including this one) -- used to derive extra snap targets from
+   *  sibling widgets' own edges/centers, on top of the frame-based ones. */
+  allWidgets: WidgetInstance[]
   frameWidth: number
   frameHeight: number
   sampler: TelemetrySampler
@@ -44,6 +47,7 @@ interface Props {
 
 function WidgetBox({
   widget,
+  allWidgets,
   frameWidth,
   frameHeight,
   sampler,
@@ -77,6 +81,17 @@ function WidgetBox({
   const pixelX = widget.x * frameWidth
   const pixelY = widget.y * frameHeight
 
+  // Snap targets are every widget NOT currently part of the active selection -- a group member
+  // being dragged alongside the anchor moves too, so its own edges aren't a meaningful thing to
+  // snap against (unlike a genuinely stationary sibling widget).
+  const otherRects = useMemo(
+    () =>
+      allWidgets
+        .filter((w) => !selectedIds.includes(w.id))
+        .map((w) => ({ x: w.x * frameWidth, y: w.y * frameHeight, w: w.w * frameWidth, h: w.h * frameHeight })),
+    [allWidgets, selectedIds, frameWidth, frameHeight]
+  )
+
   // Local override during an active drag -- react-rnd is used as a controlled component (via
   // `position`) so snapping can visually override the pointer's raw position without writing to the
   // store on every mousemove. Cleared (falls back to the store's own pixelX/pixelY) once the drag ends.
@@ -109,7 +124,7 @@ function WidgetBox({
     if (!snapEnabled) {
       preview = { x: d.x, y: d.y }
     } else {
-      const snap = computeSnap(d.x, d.y, pixelW, pixelH, frameWidth, frameHeight, paddingFraction)
+      const snap = computeSnap(d.x, d.y, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
       preview = { x: snap.x, y: snap.y }
       onGuidesChange({ xPx: snap.guideXPx, yPx: snap.guideYPx })
     }
@@ -121,7 +136,7 @@ function WidgetBox({
 
   const handleDragStop: RndDragCallback = (_e, d) => {
     const snap = snapEnabled
-      ? computeSnap(d.x, d.y, pixelW, pixelH, frameWidth, frameHeight, paddingFraction)
+      ? computeSnap(d.x, d.y, pixelW, pixelH, frameWidth, frameHeight, paddingFraction, undefined, otherRects)
       : { x: d.x, y: d.y }
     if (isGroupMember) {
       const dxFrac = (snap.x - pixelX) / frameWidth

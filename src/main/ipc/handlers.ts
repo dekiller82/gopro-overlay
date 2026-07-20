@@ -9,6 +9,7 @@ import { defaultChangelogPath, readChangelog } from '../app/changelog'
 import { checkForUpdate } from '../app/updateCheck'
 import { runExport } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
+import { findDeliveryPreset, resolvePresetDimensions } from '../../shared/export/deliveryPresets'
 import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject, UpdateCheckResult } from '../../shared/types'
 
 const PROJECT_FILTERS = [{ name: 'GoPro Overlay Project', extensions: ['gpo'] }]
@@ -121,7 +122,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('app:getChangelog', async (): Promise<string> => readChangelog(defaultChangelogPath()))
   ipcMain.handle('app:checkForUpdate', async (): Promise<UpdateCheckResult | null> => checkForUpdate(app.getVersion()))
 
-  ipcMain.handle('export:start', async (event, payload: ProjectPayload): Promise<string | null> => {
+  ipcMain.handle('export:start', async (event, payload: ProjectPayload, deliveryPresetId?: string): Promise<string | null> => {
     const win = BrowserWindow.getFocusedWindow()
     const result = win
       ? await dialog.showSaveDialog(win, { filters: [{ name: 'MP4 Video', extensions: ['mp4'] }], defaultPath: 'export.mp4' })
@@ -133,15 +134,30 @@ export function registerIpcHandlers(): void {
     const referenceVideo = clips[0].video
     const sampler = createTelemetrySampler(payload.imported.telemetry)
 
+    // No preset (or an unrecognized id) -- the default "source quality" export, byte-for-byte
+    // the same settings this app has always used: native resolution, quality-based (CRF) encode.
+    const preset = deliveryPresetId ? findDeliveryPreset(deliveryPresetId) : null
+    const { width, height } = preset
+      ? resolvePresetDimensions(preset, referenceVideo.width, referenceVideo.height)
+      : { width: referenceVideo.width, height: referenceVideo.height }
+
     await runExport({
       clips,
       outputPath: result.filePath,
       widgets: payload.widgets,
       sampler,
       startFinish: payload.startFinish,
+      crossingAdjustmentsMs: payload.crossingAdjustmentsMs,
       trimStartMs: payload.trimStartMs,
       trimEndMs: payload.trimEndMs,
-      settings: { width: referenceVideo.width, height: referenceVideo.height, fps: referenceVideo.fps || 30, crf: EXPORT_CRF },
+      settings: {
+        width,
+        height,
+        fps: referenceVideo.fps || 30,
+        crf: EXPORT_CRF,
+        videoBitrateKbps: preset?.videoBitrateKbps,
+        audioBitrateKbps: preset?.audioBitrateKbps
+      },
       onProgress: (done, total) => {
         event.sender.send('export:progress', { done, total })
       },

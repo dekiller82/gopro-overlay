@@ -18,6 +18,7 @@ export async function saveProjectToFile(projectPath: string, payload: ProjectPay
     telemetryCacheFile: telemetryFileName,
     widgets: payload.widgets as ProjectFile['widgets'],
     startFinish: payload.startFinish,
+    crossingAdjustmentsMs: payload.crossingAdjustmentsMs,
     trimStartMs: payload.trimStartMs,
     trimEndMs: payload.trimEndMs
   }
@@ -42,6 +43,7 @@ export async function loadProjectFromFile(projectPath: string): Promise<ProjectP
     imported: { clips: project.clips, telemetry },
     widgets: project.widgets as WidgetInstance[],
     startFinish: project.startFinish,
+    crossingAdjustmentsMs: project.crossingAdjustmentsMs,
     trimStartMs: project.trimStartMs,
     trimEndMs: project.trimEndMs
   }

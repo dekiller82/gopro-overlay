@@ -60,6 +60,10 @@ const latLonSchema = z.object({
   lon: z.number()
 })
 
+// .default({}) -- added after the project file format shipped, so an already-saved project (no
+// manual crossing corrections at all) still parses.
+const crossingAdjustmentsSchema = z.record(z.string(), z.number()).default({})
+
 const timerStyleSchema = z.object({
   color: z.string(),
   showCentiseconds: z.boolean(),
@@ -411,6 +415,9 @@ export const projectFileSchema = z.object({
   widgets: z.array(widgetSchema),
   /** One start/finish line shared by every widget that needs lap/sector detection. */
   startFinish: latLonSchema.nullable(),
+  /** Manual per-crossing time corrections for the startFinish point above -- see
+   *  shared/types.ts's CrossingAdjustments. */
+  crossingAdjustmentsMs: crossingAdjustmentsSchema,
   /** Whole-sequence trim, global ms spanning all clips. */
   trimStartMs: z.number(),
   trimEndMs: z.number()
@@ -462,6 +469,7 @@ export function parseProjectFile(raw: unknown): ProjectFile {
       ...rest,
       version: 2,
       clips: [{ video: { ...sourceVideo, hasAudio: true, lrvPath: null }, startOffsetMs: 0 }],
+      crossingAdjustmentsMs: {},
       trimStartMs: 0,
       trimEndMs: sourceVideo.durationMs
     }

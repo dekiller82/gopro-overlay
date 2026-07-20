@@ -160,6 +160,7 @@ function PropertyPanel(): React.JSX.Element {
   const currentTimeMs = useProjectStore((s) => s.currentTimeMs)
   const startFinish = useProjectStore((s) => s.startFinish)
   const setStartFinish = useProjectStore((s) => s.setStartFinish)
+  const crossingAdjustmentsMs = useProjectStore((s) => s.crossingAdjustmentsMs)
   const paddingFraction = useAlignmentStore((s) => s.paddingFraction)
   const setPaddingFraction = useAlignmentStore((s) => s.setPaddingFraction)
   const snapEnabled = useAlignmentStore((s) => s.snapEnabled)
@@ -176,10 +177,10 @@ function PropertyPanel(): React.JSX.Element {
     if (!selected || selected.type !== 'gpsTrack' || !selected.style.showGhost) return null
     if (!startFinish) return 'no-start-finish'
     if (!imported) return 'no-completed-lap'
-    const crossings = detectLapCrossings(imported.telemetry.samples, startFinish)
+    const crossings = detectLapCrossings(imported.telemetry.samples, startFinish, undefined, undefined, crossingAdjustmentsMs)
     const hasCompletedLap = crossings.some((c, i) => i > 0 && c <= currentTimeMs)
     return hasCompletedLap ? 'active' : 'no-completed-lap'
-  }, [selected, startFinish, imported, currentTimeMs])
+  }, [selected, startFinish, imported, currentTimeMs, crossingAdjustmentsMs])
 
   const [layoutPresets, setLayoutPresets] = useState<WidgetLayoutPreset[]>([])
   useEffect(() => {

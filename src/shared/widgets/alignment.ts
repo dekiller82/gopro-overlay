@@ -34,6 +34,14 @@ export interface SnapResult {
   guideYPx: number | null
 }
 
+/** Another widget's pixel-space box, used as extra snap targets alongside the frame's own edges/center. */
+export interface SnapRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 interface AxisCandidate {
   /** Resulting pixel position for the widget's own edge (left or top) if this candidate snaps. */
   widgetPos: number
@@ -50,13 +58,41 @@ function axisCandidates(sizePx: number, framePx: number, paddingPx: number): Axi
   ]
 }
 
-function snapAxis(pixelPos: number, sizePx: number, framePx: number, paddingPx: number, thresholdPx: number): { pos: number; guidePx: number | null } {
-  for (const candidate of axisCandidates(sizePx, framePx, paddingPx)) {
-    if (Math.abs(pixelPos - candidate.widgetPos) <= thresholdPx) {
-      return { pos: candidate.widgetPos, guidePx: candidate.guidePos }
+/** Left/center/right (or top/center/bottom) edges of another widget's own box, as candidates the
+ *  DRAGGED widget's matching edge/center can snap to -- same three-way shape as axisCandidates
+ *  above, just sourced from a sibling widget's box instead of the frame's. */
+function widgetAxisCandidates(rects: SnapRect[], sizePx: number, isX: boolean): AxisCandidate[] {
+  const candidates: AxisCandidate[] = []
+  for (const rect of rects) {
+    const pos = isX ? rect.x : rect.y
+    const size = isX ? rect.w : rect.h
+    candidates.push({ widgetPos: pos, guidePos: pos })
+    candidates.push({ widgetPos: pos + size - sizePx, guidePos: pos + size })
+    candidates.push({ widgetPos: pos + size / 2 - sizePx / 2, guidePos: pos + size / 2 })
+  }
+  return candidates
+}
+
+/** Picks the CLOSEST candidate within thresholdPx (not just the first found) -- with widget-sourced
+ *  candidates added on top of the frame's fixed 3, several can plausibly be in range at once. */
+function snapAxis(
+  pixelPos: number,
+  sizePx: number,
+  framePx: number,
+  paddingPx: number,
+  thresholdPx: number,
+  otherRects: SnapRect[],
+  isX: boolean
+): { pos: number; guidePx: number | null } {
+  const candidates = [...axisCandidates(sizePx, framePx, paddingPx), ...widgetAxisCandidates(otherRects, sizePx, isX)]
+  let best: { pos: number; guidePx: number; dist: number } | null = null
+  for (const candidate of candidates) {
+    const dist = Math.abs(pixelPos - candidate.widgetPos)
+    if (dist <= thresholdPx && (!best || dist < best.dist)) {
+      best = { pos: candidate.widgetPos, guidePx: candidate.guidePos, dist }
     }
   }
-  return { pos: pixelPos, guidePx: null }
+  return best ? { pos: best.pos, guidePx: best.guidePx } : { pos: pixelPos, guidePx: null }
 }
 
 export const DEFAULT_SNAP_THRESHOLD_PX = 8
@@ -70,6 +106,11 @@ export const DEFAULT_SNAP_THRESHOLD_PX = 8
  * visual padding looks equal on every side regardless of the frame's aspect ratio (unlike scaling
  * each axis by its own dimension, which would make horizontal padding wider than vertical on a
  * typical 16:9 frame).
+ *
+ * `otherRects` (other widgets' own pixel boxes, the dragged widget and any other actively-selected
+ * group members already excluded by the caller) adds their left/center/right and top/middle/bottom
+ * edges as further snap targets, on top of the frame-based ones -- e.g. lining up Delta Time with
+ * Sector Timer without eyeballing pixels.
  */
 export function computeSnap(
   pixelX: number,
@@ -79,10 +120,11 @@ export function computeSnap(
   frameWidth: number,
   frameHeight: number,
   paddingFraction: number,
-  thresholdPx: number = DEFAULT_SNAP_THRESHOLD_PX
+  thresholdPx: number = DEFAULT_SNAP_THRESHOLD_PX,
+  otherRects: SnapRect[] = []
 ): SnapResult {
   const paddingPx = paddingFraction * Math.min(frameWidth, frameHeight)
-  const xSnap = snapAxis(pixelX, pixelW, frameWidth, paddingPx, thresholdPx)
-  const ySnap = snapAxis(pixelY, pixelH, frameHeight, paddingPx, thresholdPx)
+  const xSnap = snapAxis(pixelX, pixelW, frameWidth, paddingPx, thresholdPx, otherRects, true)
+  const ySnap = snapAxis(pixelY, pixelH, frameHeight, paddingPx, thresholdPx, otherRects, false)
   return { x: xSnap.pos, y: ySnap.pos, guideXPx: xSnap.guidePx, guideYPx: ySnap.guidePx }
 }
