@@ -2,6 +2,21 @@
 
 All notable changes to GoPro Overlay are documented here.
 
+## [0.1.8] - 2026-07-21
+
+### Fixed
+- **Video preview failed to load at all on Linux — original clip, remux, and transcoded proxy alike** —
+  root-caused on real hardware (not reasoned about from Windows): the custom `gpo-video://` scheme
+  used to serve local files to the `<video>` element is registered as a "standard" scheme so it
+  parses like `file://`, but only the literal `file:` scheme gets the spec carve-out that tolerates
+  an empty authority. For any other standard scheme, `gpo-video:///home/user/clip.mp4` silently lost
+  its first real path segment to the (supposedly empty) host — Chromium parsed it as host `home`,
+  path `/user/clip.mp4` — so the file was never found regardless of its actual codec, which is why
+  the v0.1.6/v0.1.7 fixes didn't resolve the underlying complaint. The same parsing defect affected
+  Windows drive-letter paths too (host `c`, path missing the drive letter entirely), just unnoticed
+  until now. Fixed by giving these URLs an explicit, unambiguous placeholder host instead of relying
+  on an empty one.
+
 ## [0.1.7] - 2026-07-20
 
 ### Fixed
