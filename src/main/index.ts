@@ -5,11 +5,10 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/handlers'
 import { clearPreviewCache } from './video/previewProxy'
 import { registerVideoProtocolPrivilege, registerVideoProtocolHandler } from './video/videoProtocol'
+import { chromiumFeaturesFor } from './app/chromiumFeatures'
 
-// Stock Electron/Chromium HW-decode paths for HEVC exist from Electron 22+ but the platform
-// (OS-level, e.g. Windows Media Foundation) decoder isn't always active by default. Must be set
-// before app.whenReady(). Harmless no-op if the platform/GPU doesn't actually support it.
-app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport')
+// Must be set before app.whenReady() -- see chromiumFeatures.ts for why these exist.
+app.commandLine.appendSwitch('enable-features', chromiumFeaturesFor(process.platform).join(','))
 
 registerVideoProtocolPrivilege()
 
