@@ -2,6 +2,16 @@
 
 All notable changes to GoPro Overlay are documented here.
 
+## [0.1.7] - 2026-07-20
+
+### Fixed
+- **Native video preview no longer needs a transcoded proxy on Linux in the common case** — Chromium
+  doesn't enable hardware video decode (VA-API) on Linux by default, so GoPro H.264/HEVC clips fell
+  back to a software decoder that isn't included at all (patent-licensed codecs), forcing every clip
+  through the proxy fallback regardless of disk speed. Now enabled the same way this app already
+  enables a Windows-only HEVC decode flag — a no-op if a system's GPU/driver doesn't support it,
+  in which case the existing proxy fallback still catches it exactly as before.
+
 ## [0.1.6] - 2026-07-20
 
 ### Fixed
