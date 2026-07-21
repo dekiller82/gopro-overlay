@@ -239,7 +239,9 @@ renderer use identically.
   between samples at typical track speeds, so a detected crossing can land within roughly a sample
   interval (commonly a few video frames) of the real line. This is close to the physical limit of
   the hardware, not something sub-sample interpolation can safely improve on (tried and reverted —
-  it amplified GPS noise into a worse result than the plain nearest-sample approach).
+  it amplified GPS noise into a worse result than the plain nearest-sample approach). Click a lap
+  marker on the timeline to manually nudge that specific crossing ±1 frame if it's visibly off —
+  see the per-lap crossing nudge feature above.
 - **Importing directly from an SD card (especially over a USB card reader) is noticeably slower
   than importing from a local drive, and is more likely to fall back to generating a preview proxy
   even for an otherwise-supported codec.** GoPro's in-camera MP4s store their index (the `moov` atom)
