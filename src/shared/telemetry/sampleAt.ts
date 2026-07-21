@@ -28,11 +28,10 @@ export interface RollAngleReading {
 }
 
 export interface SessionStats {
-  /** Cumulative GPS arc-length from the very start of the recording up to `cts`, meters. */
+  /** GPS arc-length traveled between startCts and endCts (NOT from the start of the recording --
+   *  see sessionStatsAt), meters. */
   totalDistanceM: number
-  /** Fastest speed2D reached anywhere up to `cts`, m/s -- deliberately bounded by `cts` (not the
-   *  whole session's precomputed max) so this stays correct if scrubbed to earlier than the actual
-   *  session end, same "never leak future data" discipline as lap/sector state. */
+  /** Fastest speed2D reached between startCts and endCts, m/s. */
   maxSpeedMps: number
 }
 
@@ -74,10 +73,12 @@ export interface TelemetrySampler {
    *  raw-accelerometer-tilt fallback (see RollAngleReading.source). Only the vertical/lateral axes of
    *  `calibrationOverride` matter here (longitudinal is irrelevant to roll). */
   rollAngleAt: (cts: number, smoothingMs?: number, calibrationOverride?: AxisCalibration) => RollAngleReading
-  /** Total distance covered and fastest speed reached, both bounded to "up to `cts`" -- for the
-   *  Session Summary widget. Precomputed once as parallel prefix arrays (like trackSpeeds), not
-   *  recomputed per query. */
-  sessionStatsAt: (cts: number) => SessionStats
+  /** Total distance covered and fastest speed reached strictly BETWEEN startCts and endCts -- for
+   *  the Session Summary widget, which pairs this with an elapsed time also measured over that same
+   *  [startCts, endCts] window (the trim range), not from the start of the recording. Distance is a
+   *  cheap prefix-sum lookup (precomputed once); max speed is a linear scan over just that range's
+   *  samples, which is fine since this is only queried once per relevant recompute, not per frame. */
+  sessionStatsAt: (startCts: number, endCts: number) => SessionStats
 }
 
 const MIN_SMOOTHING_MS = 60
@@ -100,22 +101,20 @@ function computeBounds(points: ProjectedPoint[]): TrackBounds {
   return { minX, maxX, minY, maxY }
 }
 
-/** Parallel prefix arrays (1:1 index-aligned with `samples`): cumulative arc-length distance and
- *  running-max speed up to and including that sample index. Computed once per sampler, same cost
- *  class as trackSpeeds/trackCts, so sessionStatsAt is a cheap index lookup per query rather than
- *  an O(n) rescan every frame. */
-function computeSessionStatsCurve(samples: TelemetrySample[]): { cumDistanceM: number[]; runningMaxSpeedMps: number[] } {
+/** Prefix array (1:1 index-aligned with `samples`): cumulative arc-length distance up to and
+ *  including that sample index. Computed once per sampler, same cost class as trackSpeeds/trackCts
+ *  -- lets sessionStatsAt turn a distance-over-a-range query into one subtraction instead of an
+ *  O(n) rescan every call. (Max speed over a range isn't prefix-summable the same way a running max
+ *  only works for "up to index i", not arbitrary [start, end] windows -- sessionStatsAt scans just
+ *  that range directly instead.) */
+function computeCumulativeDistanceM(samples: TelemetrySample[]): number[] {
   const cumDistanceM: number[] = new Array(samples.length)
-  const runningMaxSpeedMps: number[] = new Array(samples.length)
   let cum = 0
-  let maxSpeed = 0
   for (let i = 0; i < samples.length; i++) {
     if (i > 0) cum += distanceMeters(samples[i - 1], samples[i])
-    maxSpeed = Math.max(maxSpeed, samples[i].speed2D)
     cumDistanceM[i] = cum
-    runningMaxSpeedMps[i] = maxSpeed
   }
-  return { cumDistanceM, runningMaxSpeedMps }
+  return cumDistanceM
 }
 
 function computeSpeedBounds(speeds: number[]): { min: number; max: number } {
@@ -138,12 +137,16 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
   const trackSpeeds = samples.map((s) => s.speed2D)
   const trackCts = samples.map((s) => s.cts)
   const speedBounds = computeSpeedBounds(trackSpeeds)
-  const sessionStatsCurve = computeSessionStatsCurve(samples)
+  const cumDistanceM = computeCumulativeDistanceM(samples)
 
-  function sessionStatsAt(cts: number): SessionStats {
+  function sessionStatsAt(startCts: number, endCts: number): SessionStats {
     if (samples.length === 0) return { totalDistanceM: 0, maxSpeedMps: 0 }
-    const idx = findBracketIndex(samples, cts)
-    return { totalDistanceM: sessionStatsCurve.cumDistanceM[idx], maxSpeedMps: sessionStatsCurve.runningMaxSpeedMps[idx] }
+    const startIdx = findBracketIndex(samples, startCts)
+    const endIdx = findBracketIndex(samples, endCts)
+    const totalDistanceM = Math.max(0, cumDistanceM[endIdx] - cumDistanceM[startIdx])
+    let maxSpeedMps = 0
+    for (let i = startIdx; i <= endIdx; i++) maxSpeedMps = Math.max(maxSpeedMps, trackSpeeds[i])
+    return { totalDistanceM, maxSpeedMps }
   }
 
   const accel = telemetry.accel

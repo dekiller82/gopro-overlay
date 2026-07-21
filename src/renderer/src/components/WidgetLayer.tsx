@@ -94,7 +94,7 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
   )
   const sessionSummaryData: SessionSummaryData | null = useMemo(() => {
     if (!sampler) return null
-    const stats = sampler.sessionStatsAt(trimEndMs)
+    const stats = sampler.sessionStatsAt(trimStartMs, trimEndMs)
     return {
       totalLaps: finalLapState?.history.length ?? 0,
       bestLapMs: finalLapState?.bestLapMs ?? null,

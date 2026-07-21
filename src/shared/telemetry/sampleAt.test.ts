@@ -150,40 +150,63 @@ describe('createTelemetrySampler sessionStatsAt (Session Summary widget)', () =>
     makeSample(3000, { lat: 51.503, lon: -0.1, speed2D: 20 })
   ]
 
-  it('reports zero distance/speed at the very first sample', () => {
+  it('reports zero distance/speed for a zero-width window at the very first sample', () => {
     const sampler = createTelemetrySampler(makeTelemetry(samples))
-    const stats = sampler.sessionStatsAt(0)
+    const stats = sampler.sessionStatsAt(0, 0)
     expect(stats.totalDistanceM).toBeCloseTo(0, 3)
     expect(stats.maxSpeedMps).toBe(10)
   })
 
-  it('accumulates distance and tracks the running max speed up to cts', () => {
+  it('accumulates distance and tracks the max speed within [startCts, endCts]', () => {
     const sampler = createTelemetrySampler(makeTelemetry(samples))
-    const stats = sampler.sessionStatsAt(2000)
+    const stats = sampler.sessionStatsAt(0, 2000)
     // Distance from sample 0->1->2, each leg the same size (equal lat steps) -- should be ~2x one leg.
-    const oneLegM = createTelemetrySampler(makeTelemetry(samples)).sessionStatsAt(1000).totalDistanceM
+    const oneLegM = createTelemetrySampler(makeTelemetry(samples)).sessionStatsAt(0, 1000).totalDistanceM
     expect(stats.totalDistanceM).toBeCloseTo(oneLegM * 2, 1)
-    expect(stats.maxSpeedMps).toBe(25) // peak was at t=1000, already passed by t=2000
+    expect(stats.maxSpeedMps).toBe(25) // peak was at t=1000, within [0, 2000]
   })
 
-  // Confirmed as a real, deliberate design choice, not an oversight: this must stay bounded by cts
-  // so scrubbing the editor to earlier than the true session end never shows a later peak/total
-  // that "hasn't happened yet" from that point of view -- same discipline as lap/sector state.
-  it('never leaks a later peak speed in when queried before it occurs', () => {
+  // Confirmed as a real, deliberate design choice, not an oversight: this must stay bounded by
+  // endCts so scrubbing the editor to earlier than the true session end never shows a later
+  // peak/total that "hasn't happened yet" from that point of view -- same discipline as lap/sector state.
+  it('never leaks a later peak speed in when endCts is before it occurs', () => {
     const sampler = createTelemetrySampler(makeTelemetry(samples))
-    const stats = sampler.sessionStatsAt(500) // before the t=1000 speed=25 peak
+    const stats = sampler.sessionStatsAt(0, 500) // before the t=1000 speed=25 peak
     expect(stats.maxSpeedMps).toBe(10)
   })
 
-  it('reports the full session totals once queried at/after the last sample', () => {
+  it('reports the full session totals once queried over the whole [0, lastCts] range', () => {
     const sampler = createTelemetrySampler(makeTelemetry(samples))
-    const stats = sampler.sessionStatsAt(3000)
+    const stats = sampler.sessionStatsAt(0, 3000)
     expect(stats.maxSpeedMps).toBe(25)
     expect(stats.totalDistanceM).toBeGreaterThan(0)
   })
 
+  // The actual bug reported: with a start trim positioned close to the end trim, distance/speed
+  // from BEFORE startCts must not leak in -- previously this queried "up to endCts" only, so a
+  // short trimmed window near the end still reported the ENTIRE session's distance/peak speed
+  // (accumulated from cts=0), paired with the short window's tiny elapsed time -> a wildly inflated
+  // average speed in the Session Summary widget.
+  it('excludes distance/speed from before startCts -- a short window near the end reports only that window\'s own stats', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    // A short window entirely within the last leg (t=2000 -> t=3000), NOT from the start.
+    const stats = sampler.sessionStatsAt(2500, 3000)
+    const wholeSessionStats = sampler.sessionStatsAt(0, 3000)
+    // Must be much smaller than the whole session's distance -- not leaking in samples 0/1/2's legs.
+    expect(stats.totalDistanceM).toBeLessThan(wholeSessionStats.totalDistanceM)
+    // Peak speed in [2500, 3000] is just sample 3's speed (20), NOT the whole session's peak (25 at t=1000).
+    expect(stats.maxSpeedMps).toBe(20)
+  })
+
+  it('a zero-width (or near-zero) window at the very end reports ~zero distance, not the whole session\'s', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    const stats = sampler.sessionStatsAt(3000, 3000)
+    expect(stats.totalDistanceM).toBeCloseTo(0, 3)
+    expect(stats.maxSpeedMps).toBe(20) // just the sample at t=3000, not the earlier t=1000 peak
+  })
+
   it('handles an empty sample array without throwing', () => {
     const sampler = createTelemetrySampler(makeTelemetry([]))
-    expect(sampler.sessionStatsAt(1000)).toEqual({ totalDistanceM: 0, maxSpeedMps: 0 })
+    expect(sampler.sessionStatsAt(0, 1000)).toEqual({ totalDistanceM: 0, maxSpeedMps: 0 })
   })
 })

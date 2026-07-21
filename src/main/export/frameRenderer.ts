@@ -53,7 +53,7 @@ export async function createFrameRenderer(
   // final totals, resolved once here rather than recomputed (and drifting) on every frame.
   const finalLapState = crossings ? getLapStateAt(crossings, trimEndMs) : null
   const finalSectorState = sectorBoundaries ? getSectorStateAt(sectorBoundaries, trimEndMs) : null
-  const finalSessionStats = sampler.sessionStatsAt(trimEndMs)
+  const finalSessionStats = sampler.sessionStatsAt(trimStartMs, trimEndMs)
   const sessionSummaryData = {
     totalLaps: finalLapState?.history.length ?? 0,
     bestLapMs: finalLapState?.bestLapMs ?? null,
