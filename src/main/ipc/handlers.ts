@@ -12,7 +12,7 @@ import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
 import { findDeliveryPreset, resolvePresetDimensions } from '../../shared/export/deliveryPresets'
 import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject, UpdateCheckResult } from '../../shared/types'
 
-const PROJECT_FILTERS = [{ name: 'GoPro Overlay Project', extensions: ['gpo'] }]
+const PROJECT_FILTERS = [{ name: 'Telemetry Studio Project', extensions: ['gpo'] }]
 const VIDEO_FILTERS = [{ name: 'GoPro video', extensions: ['mp4', 'mov', 'MP4', 'MOV'] }]
 const EXPORT_CRF = 18
 

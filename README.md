@@ -1,4 +1,4 @@
-# GoPro Overlay
+# Telemetry Studio
 
 A desktop editor for burning GoPro telemetry (GPS, speed, lean angle, G-forces, lap/sector
 timing…) directly into your video as a rendered overlay. No cloud upload, no subscription!! Import
@@ -11,7 +11,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Demo
 
-![GoPro Overlay demo](docs/demo.gif)
+![Telemetry Studio demo](docs/demo.gif)
 
 **[▶ Watch the full demo video with audio](https://youtu.be/YtDYg4stG4M)**
 

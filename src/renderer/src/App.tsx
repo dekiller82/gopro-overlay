@@ -373,7 +373,7 @@ function App(): React.JSX.Element {
         <header className="toolbar">
           <div className="app-shell__brand app-shell__brand--compact">
             <span className="app-shell__dot" />
-            GoPro Overlay
+            Telemetry Studio
           </div>
           <div className="toolbar__actions">
             {savedPath && <span className="toolbar__saved-hint">Saved</span>}
@@ -566,7 +566,7 @@ function App(): React.JSX.Element {
     <div className="app-shell">
       <div className="app-shell__brand">
         <span className="app-shell__dot" />
-        GoPro Overlay
+        Telemetry Studio
       </div>
 
       <div className="app-shell__actions">

@@ -9,7 +9,7 @@ import type { VideoMeta } from '../../shared/types'
 import { resolveUnpackedBinaryPath } from '../app/binaryPath'
 
 function getPreviewCacheDir(): string {
-  return join(app.getPath('temp'), 'gopro-overlay-previews')
+  return join(app.getPath('temp'), 'telemetry-studio-previews')
 }
 
 /** Proxies are cheap to regenerate (the common case is a near-instant remux), so rather than

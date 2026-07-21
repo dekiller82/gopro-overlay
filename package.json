@@ -1,7 +1,7 @@
 {
-  "name": "gopro-overlay",
-  "version": "0.1.9",
-  "description": "Customizable GoPro telemetry overlay editor and exporter",
+  "name": "telemetry-studio",
+  "version": "0.1.10",
+  "description": "Customizable motorsport telemetry overlay editor and exporter for GoPro footage",
   "main": "./out/main/index.js",
   "author": "dekiller82 <erenerikaydogan@gmail.com>",
   "license": "MIT",
@@ -51,8 +51,8 @@
     "vitest": "^4.1.10"
   },
   "build": {
-    "appId": "com.dekiller82.gopro-overlay",
-    "productName": "GoPro Overlay",
+    "appId": "com.dekiller82.telemetry-studio",
+    "productName": "Telemetry Studio",
     "publish": {
       "provider": "github",
       "owner": "dekiller82",

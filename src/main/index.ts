@@ -65,7 +65,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.gopro-overlay.app')
+  electronApp.setAppUserModelId('com.telemetry-studio.app')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

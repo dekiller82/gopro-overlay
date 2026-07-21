@@ -1,6 +1,15 @@
 # Changelog
 
-All notable changes to GoPro Overlay are documented here.
+All notable changes to Telemetry Studio are documented here.
+
+## [0.1.10] - 2026-07-21
+
+### Changed
+- **Renamed the app from "GoPro Overlay" to "Telemetry Studio"** — the app has grown well past a
+  GoPro-specific tool (F1-style timing towers, G-force/lean-angle analysis, delivery presets...),
+  and "GoPro" is someone else's trademark to begin with. Project files still use the `.gpo`
+  extension unchanged, and video import is still GoPro-only for now (see the CHANGELOG entries
+  above for what that actually covers) — this is a branding change, not a functional one.
 
 ## [0.1.9] - 2026-07-21
 
