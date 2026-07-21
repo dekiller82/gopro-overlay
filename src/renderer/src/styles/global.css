@@ -80,6 +80,15 @@ body {
   cursor: default;
 }
 
+/* The dropdown POPUP is native-rendered (Chromium/Windows gives it a plain white background
+   regardless of the page's own dark theme) -- without this, <option> inherited the select's own
+   near-white --text color meant for a dark background, landing as near-white-on-white and reading
+   as almost blank except the one hovered/highlighted row. */
+.export-preset-select option {
+  color: #1a1a1a;
+  background-color: #ffffff;
+}
+
 .app-shell__error {
   color: var(--accent);
   font-size: 13px;
@@ -143,6 +152,51 @@ body {
 .toolbar__saved-hint {
   font-size: 11px;
   color: #34c759;
+}
+
+.toolbar-menu {
+  position: relative;
+}
+
+.toolbar-menu__caret {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.toolbar-menu__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.toolbar-menu__item {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-menu__item:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.toolbar-menu__item:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .toolbar__error {

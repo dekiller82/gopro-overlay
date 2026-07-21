@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from './components/Editor'
 import WhatsNewModal from './components/WhatsNewModal'
+import ToolbarMenu from './components/ToolbarMenu'
 import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
 import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
@@ -388,43 +389,76 @@ function App(): React.JSX.Element {
             >
               Redo
             </button>
-            <button className="import-button import-button--ghost" onClick={handleSaveProject} disabled={isExporting}>
-              Save Project
-            </button>
-            <button
-              className="import-button import-button--ghost"
-              onClick={handleOpenProject}
-              disabled={status === 'loading' || isExporting}
-            >
-              Open Project
-            </button>
-            <button
-              className="import-button import-button--ghost"
-              onClick={handleAddClips}
-              disabled={status === 'loading' || isExporting}
-              title="Append more clips to the end of this timeline"
-            >
-              + Add Clip
-            </button>
-            <button
-              className="import-button import-button--ghost"
-              onClick={handleImport}
-              disabled={status === 'loading' || isExporting}
-            >
-              {status === 'loading' ? 'Importing…' : 'Import different clip(s)'}
-            </button>
-            <button
-              className="import-button import-button--ghost"
-              onClick={() => setShowBestLapExportForm((v) => !v)}
-              disabled={isExporting || widgets.length === 0 || !fastestLap}
-              title={
-                !fastestLap
-                  ? 'No completed lap yet -- set a start/finish line and complete at least one lap'
-                  : `Export just your fastest lap (Lap ${fastestLap.lapNumber})`
-              }
-            >
-              🏁 Export Best Lap…
-            </button>
+            <ToolbarMenu label="File" disabled={isExporting}>
+              {(closeMenu) => (
+                <>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      handleSaveProject()
+                      closeMenu()
+                    }}
+                  >
+                    Save Project
+                  </button>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      handleOpenProject()
+                      closeMenu()
+                    }}
+                    disabled={status === 'loading'}
+                  >
+                    Open Project
+                  </button>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      handleAddClips()
+                      closeMenu()
+                    }}
+                    disabled={status === 'loading'}
+                    title="Append more clips to the end of this timeline"
+                  >
+                    + Add Clip
+                  </button>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      handleImport()
+                      closeMenu()
+                    }}
+                    disabled={status === 'loading'}
+                  >
+                    {status === 'loading' ? 'Importing…' : 'Import different clip(s)'}
+                  </button>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      setShowBestLapExportForm((v) => !v)
+                      closeMenu()
+                    }}
+                    disabled={widgets.length === 0 || !fastestLap}
+                    title={
+                      !fastestLap
+                        ? 'No completed lap yet -- set a start/finish line and complete at least one lap'
+                        : `Export just your fastest lap (Lap ${fastestLap.lapNumber})`
+                    }
+                  >
+                    🏁 Export Best Lap…
+                  </button>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      setShowWhatsNew(true)
+                      closeMenu()
+                    }}
+                  >
+                    What's New
+                  </button>
+                </>
+              )}
+            </ToolbarMenu>
             <select
               className="export-preset-select"
               value={exportPresetId}
@@ -446,9 +480,6 @@ function App(): React.JSX.Element {
               title={widgets.length === 0 ? 'Add at least one widget before exporting' : undefined}
             >
               {isExporting ? 'Exporting…' : 'Export Video'}
-            </button>
-            <button className="import-button import-button--ghost" onClick={() => setShowWhatsNew(true)} title="What's changed recently">
-              What's New
             </button>
           </div>
         </header>

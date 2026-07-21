@@ -410,21 +410,30 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
         </span>
         <button
           className="timeline-nudge__button"
-          onClick={() => nudgeCrossing(selectedCrossingIndex, -selectedFrameMs)}
-          title="1 frame earlier"
+          onClick={() => {
+            nudgeCrossing(selectedCrossingIndex, -selectedFrameMs)
+            playerApiRef.current?.seekToGlobalMs(selectedCrossingCts - selectedFrameMs)
+          }}
+          title="1 frame earlier -- also seeks the video there so you can see the new crossing frame"
         >
           ◀ 1 frame
         </button>
         <button
           className="timeline-nudge__button"
-          onClick={() => nudgeCrossing(selectedCrossingIndex, selectedFrameMs)}
-          title="1 frame later"
+          onClick={() => {
+            nudgeCrossing(selectedCrossingIndex, selectedFrameMs)
+            playerApiRef.current?.seekToGlobalMs(selectedCrossingCts + selectedFrameMs)
+          }}
+          title="1 frame later -- also seeks the video there so you can see the new crossing frame"
         >
           1 frame ▶
         </button>
         <button
           className="timeline-nudge__button timeline-nudge__button--reset"
-          onClick={() => resetCrossingAdjustment(selectedCrossingIndex)}
+          onClick={() => {
+            resetCrossingAdjustment(selectedCrossingIndex)
+            playerApiRef.current?.seekToGlobalMs(selectedCrossingCts - selectedAdjustmentMs)
+          }}
           disabled={selectedAdjustmentFrames === 0}
           title="Reset to the automatically detected position"
         >
