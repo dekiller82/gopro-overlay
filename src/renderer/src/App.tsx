@@ -6,7 +6,7 @@ import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
 import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
 import { formatTime } from '@shared/format'
-import { DELIVERY_PRESETS, SOURCE_QUALITY_PRESET_ID } from '@shared/export/deliveryPresets'
+import { DELIVERY_PRESETS, SOURCE_QUALITY_PRESET_ID, findDeliveryPreset } from '@shared/export/deliveryPresets'
 import type { ImportProgress, ProjectPayload, RecentProject, UpdateCheckResult } from '@shared/types'
 
 const LAST_SEEN_VERSION_KEY = 'gpo-last-seen-version'
@@ -78,6 +78,10 @@ function App(): React.JSX.Element {
   // "no delivery preset," so window.api.exportVideo gets undefined and behaves exactly as before
   // this control existed (native resolution, quality-based CRF encode).
   const [exportPresetId, setExportPresetId] = useState<string>(SOURCE_QUALITY_PRESET_ID)
+  // Shown in the Export Best Lap panel so which preset it'll use isn't a silent, easy-to-miss
+  // dependency on the toolbar dropdown -- especially now that dropdown lives one File-menu click
+  // away rather than always visible.
+  const activePresetLabel = exportPresetId === SOURCE_QUALITY_PRESET_ID ? 'Source quality' : (findDeliveryPreset(exportPresetId)?.label ?? 'Source quality')
   const [autosaveAvailable, setAutosaveAvailable] = useState(false)
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
   const [changelog, setChangelog] = useState('')
@@ -486,7 +490,8 @@ function App(): React.JSX.Element {
         {showBestLapExportForm && fastestLap && (
           <div className="best-lap-export-form">
             <span>
-              Export Lap {fastestLap.lapNumber} ({formatTime(fastestLap.timeMs, true)}) with
+              Export Lap {fastestLap.lapNumber} ({formatTime(fastestLap.timeMs, true)}) using{' '}
+              <strong>{activePresetLabel}</strong>, with
             </span>
             <label className="best-lap-export-form__field">
               <input
