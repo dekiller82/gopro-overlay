@@ -1,6 +1,6 @@
 import type { UpdateCheckResult } from '../../shared/types'
 
-const REPO = 'dekiller82/gopro-overlay'
+const REPO = 'dekiller82/telemetry-studio'
 const REQUEST_TIMEOUT_MS = 5000
 
 type Version = [number, number, number]

@@ -40,14 +40,23 @@ speedometer widgets running together over real footage.
 - **Multi-select** — shift-click widgets (on the canvas or in the widget list) to build a
   selection; drag any member to move the whole group together, and align/center/delete/arrow-key
   nudge all apply to the whole selection at once.
-- **Widget alignment tools** — snap-to-edge/center dragging with configurable padding, one-click
+- **Widget alignment tools** — snap-to-edge/center dragging (against the frame's own edges/center
+  *and* other widgets' edges/centers, whichever's closer) with configurable padding, one-click
   align/center buttons, and arrow-key nudge (1px, 10px with Shift) for pixel-precise placement.
+- **Per-lap start/finish crossing nudge** — the automatic lap-crossing detection can register a
+  crossing a few frames early or late on a given lap; click a lap marker on the timeline to select
+  it, then nudge it ±1 frame with a live offset readout and a Reset button. Every widget, live
+  preview and export alike, reflects the correction immediately.
+- **Select all** — Ctrl/Cmd+A selects every widget on the canvas, ready for group move/align/delete.
 - **Drag/resize/rotate** every widget directly on the video preview; live preview matches the
   final export exactly.
 - **Undo/redo** for every widget edit, saveable/re-applicable widget layout presets, and autosave
   with crash recovery.
 - **Export just your fastest lap** as its own short clip, with configurable padding (seconds
   before/after) — doesn't touch your project's actual saved trim range.
+- **Delivery presets** — a dropdown next to Export Video bundles resolution + bitrate for YouTube
+  (4K/1080p), Instagram/TikTok/Reels, and Twitter/X, alongside the default native-resolution
+  "Source quality" export.
 - **Recent Projects** list on the start screen for one-click reopening of your last 10
   opened/saved projects.
 - **Project files** (`.gpo`) save the full editing state (imported clips, widgets, trim, start/finish
@@ -147,7 +156,7 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
 ## Installing
 
 Download the installer for your platform from the
-[Releases page](https://github.com/dekiller82/gopro-overlay/releases):
+[Releases page](https://github.com/dekiller82/telemetry-studio/releases):
 
 - **Windows** — `.exe` installer or the portable `.exe`
 - **macOS** — `.dmg`
@@ -225,8 +234,6 @@ renderer use identically.
 - **Roll/lean angle accuracy** without a gravity-vector stream (older cameras) is estimated from
   raw accelerometer tilt, which reads exaggerated during hard cornering since lateral G adds to the
   tilt signal. The widget flags when it's using this fallback.
-- **Widget alignment** (snapping/centering) is relative to the video frame only, not to other
-  widgets.
 - **Start/finish crossing timing** is bounded by the GoPro's own GPS accuracy and sample rate —
   consumer GPS position noise (a few meters) is often comparable to how far you actually move
   between samples at typical track speeds, so a detected crossing can land within roughly a sample
