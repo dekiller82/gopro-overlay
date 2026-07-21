@@ -126,6 +126,13 @@ body {
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel);
   flex-shrink: 0;
+  /* Own stacking context, pinned above the editor canvas -- without this, a widget's own z-index
+     (bringToFront bumps it to maxZ+1 on every single click/select, unbounded, so it climbs well
+     past any small hardcoded value over a real editing session) could end up stacking ABOVE the
+     toolbar and anything dropped down from it, like the File menu -- letting a click that looks
+     like it's on the menu actually land on a widget underneath. */
+  position: relative;
+  z-index: 50;
 }
 
 .app-shell__brand--compact {
@@ -626,6 +633,11 @@ body {
      tucked into a corner) -- this clips the live preview to the exact video frame bounds, matching
      export's own natural Canvas2D clipping, so nothing renders outside the visible frame. */
   overflow: hidden;
+  /* Contains every widget's own z-index (unbounded -- bringToFront bumps it to maxZ+1 on every
+     click) to this subtree's own stacking context, so no matter how high an individual widget's
+     z-index climbs over a session, it can never leak out and stack above chrome outside this
+     layer (the toolbar, its File menu, modals, etc). */
+  z-index: 0;
 }
 
 .alignment-guide {
