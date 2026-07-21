@@ -26,24 +26,30 @@ function Editor(): React.JSX.Element {
   const selectedIds = useWidgetStore((s) => s.selectedIds)
   const moveWidgetsBy = useWidgetStore((s) => s.moveWidgetsBy)
   const removeWidgets = useWidgetStore((s) => s.removeWidgets)
+  const selectAll = useWidgetStore((s) => s.selectAll)
 
-  // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (or +Y) for widget-edit undo/redo -- skipped while a text/select
-  // input has focus so it doesn't fight a property panel text field's own native undo.
+  // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (or +Y) for widget-edit undo/redo, Ctrl/Cmd+A for "select every
+  // widget" (same convention as Photoshop/Figma/Premiere -- select-all on the canvas, not the
+  // browser's own default text-selection, which is what Ctrl+A does with nothing to intercept it).
+  // All skipped while a text/select input has focus so they don't fight that field's own native
+  // undo/select-all.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
-      if (!(e.ctrlKey || e.metaKey) || (key !== 'z' && key !== 'y')) return
+      if (key !== 'z' && key !== 'y' && key !== 'a') return
       const target = e.target as HTMLElement | null
       if (target && EDITABLE_TAGS.has(target.tagName)) return
 
       e.preventDefault()
-      if (key === 'y') redo()
+      if (key === 'a') selectAll()
+      else if (key === 'y') redo()
       else if (e.shiftKey) redo()
       else undo()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [undo, redo])
+  }, [undo, redo, selectAll])
 
   const referenceVideo = imported?.clips[0]?.video
   const aspectRatio = referenceVideo ? referenceVideo.width / referenceVideo.height : 16 / 9

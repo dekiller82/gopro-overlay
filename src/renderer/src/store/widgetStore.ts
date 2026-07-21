@@ -19,6 +19,9 @@ interface WidgetState {
   /** additive (shift-click) toggles the id's membership in selectedIds instead of replacing the
    *  whole selection with just this one id. Passing null always clears the selection entirely. */
   selectWidget: (id: string | null, additive?: boolean) => void
+  /** Selects every widget currently in the layout -- Ctrl/Cmd+A, same convention as Photoshop/
+   *  Figma/Premiere (select all objects on the canvas), not the browser's native text selection. */
+  selectAll: () => void
   /** Moves every widget in `ids` by the same (x,y) fraction delta -- used for group drag and for
    *  arrow-key nudge, both of which move every selected widget together. */
   moveWidgetsBy: (ids: string[], dxFrac: number, dyFrac: number) => void
@@ -129,6 +132,14 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
       const selectedIds = isMember ? state.selectedIds.filter((existingId) => existingId !== id) : [...state.selectedIds, id]
       const selectedId = isMember ? (state.selectedId === id ? (selectedIds[selectedIds.length - 1] ?? null) : state.selectedId) : id
       return { selectedId, selectedIds }
+    })
+  },
+
+  selectAll: () => {
+    set((state) => {
+      if (state.widgets.length === 0) return {}
+      const selectedIds = state.widgets.map((w) => w.id)
+      return { selectedIds, selectedId: selectedIds[selectedIds.length - 1] }
     })
   },
 

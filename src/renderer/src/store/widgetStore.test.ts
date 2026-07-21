@@ -159,6 +159,20 @@ describe('widgetStore multi-select', () => {
     expect(useWidgetStore.getState().selectedIds).toEqual([])
   })
 
+  it('selectAll selects every widget in the layout, primary set to the last one', () => {
+    const [a, b, c] = addThreeWidgets()
+    useWidgetStore.getState().selectWidget(a) // some prior single selection
+    useWidgetStore.getState().selectAll()
+    expect(useWidgetStore.getState().selectedIds).toEqual([a, b, c])
+    expect(useWidgetStore.getState().selectedId).toBe(c)
+  })
+
+  it('selectAll on an empty layout is a no-op, not an empty-array selection', () => {
+    useWidgetStore.getState().selectAll()
+    expect(useWidgetStore.getState().selectedIds).toEqual([])
+    expect(useWidgetStore.getState().selectedId).toBeNull()
+  })
+
   it('moveWidgetsBy shifts every listed widget by the same fraction delta, leaving others untouched', () => {
     const [a, b, c] = addThreeWidgets()
     const before = Object.fromEntries(useWidgetStore.getState().widgets.map((w) => [w.id, { x: w.x, y: w.y }]))
