@@ -17,4 +17,9 @@ describe('resolveFontStack', () => {
     expect(resolveFontStack('Arial', 'bold')).toBe(`"Arial", ${FALLBACK_FONT_STACK}`)
     expect(resolveFontStack('Arial', 'regular')).toBe(`"Arial", ${FALLBACK_FONT_STACK}`)
   })
+
+  it('an explicit literal bundled font name overrides the weight argument -- picking "Formula1 Bold" directly forces Bold even where a widget would otherwise ask for Regular', () => {
+    expect(resolveFontStack(FORMULA1_BOLD, 'regular')).toBe(`"${FORMULA1_BOLD}", ${FALLBACK_FONT_STACK}`)
+    expect(resolveFontStack(FORMULA1_REGULAR, 'bold')).toBe(`"${FORMULA1_REGULAR}", ${FALLBACK_FONT_STACK}`)
+  })
 })

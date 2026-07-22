@@ -2,6 +2,18 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.14] - 2026-07-22
+
+### Fixed
+- **Font picker: the two bundled Formula1 weights weren't individually selectable** — the picker
+  (both the global default and each widget's own override) only offered one combined "Formula1
+  (bundled)" entry, which let each widget auto-mix Bold/Regular the way it always internally has
+  (e.g. a label in Bold next to a value in Regular) but gave no way to force just one weight
+  everywhere. "Formula1 Bold" and "Formula1 Regular" are now separate, directly selectable entries
+  in both dropdowns — picking either uses that one weight for every element in the widget (or the
+  whole project, for the global default), while the original "Formula1 — Auto" entry keeps the
+  previous per-widget mixed behavior for anyone who preferred that look.
+
 ## [0.1.13] - 2026-07-22
 
 ### Added

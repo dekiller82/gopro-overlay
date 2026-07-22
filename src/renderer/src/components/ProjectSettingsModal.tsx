@@ -1,4 +1,4 @@
-import { FORMULA1_FONT_ID } from '@shared/render/fonts'
+import { FORMULA1_BOLD, FORMULA1_FONT_ID, FORMULA1_REGULAR } from '@shared/render/fonts'
 
 interface Props {
   isOpen: boolean
@@ -27,7 +27,9 @@ function ProjectSettingsModal({ isOpen, defaultFontFamily, systemFonts, onChange
           <label className="field">
             <span>Default font</span>
             <select value={defaultFontFamily} onChange={(e) => onChangeDefaultFontFamily(e.target.value)}>
-              <option value={FORMULA1_FONT_ID}>Formula1 (bundled)</option>
+              <option value={FORMULA1_FONT_ID}>Formula1 — Auto (recommended)</option>
+              <option value={FORMULA1_BOLD}>Formula1 Bold</option>
+              <option value={FORMULA1_REGULAR}>Formula1 Regular</option>
               {systemFonts.map((font) => (
                 <option key={font} value={font}>
                   {font}
@@ -37,7 +39,9 @@ function ProjectSettingsModal({ isOpen, defaultFontFamily, systemFonts, onChange
           </label>
           <span className="field__hint">
             Applies to every widget's text by default. Any individual widget can override this with its own font, in its
-            own Style panel (Style tab, once a widget is selected).
+            own Style panel (Style tab, once a widget is selected). "Formula1 — Auto" lets each widget mix Bold/Regular
+            the way it always has (e.g. a label in Bold next to a value in Regular); picking "Formula1 Bold" or
+            "Formula1 Regular" directly instead uses that one weight for everything.
           </span>
         </div>
       </div>

@@ -19,7 +19,7 @@ import { DEFAULT_ELEVATION_STYLE } from '@shared/render/drawElevation'
 import { DEFAULT_DISTANCE_STYLE } from '@shared/render/drawDistance'
 import { DEFAULT_COMPASS_STYLE } from '@shared/render/drawCompass'
 import { DEFAULT_ACCEL_TIMER_STYLE } from '@shared/render/drawAccelTimer'
-import { FORMULA1_FONT_ID } from '@shared/render/fonts'
+import { FORMULA1_BOLD, FORMULA1_FONT_ID, FORMULA1_REGULAR } from '@shared/render/fonts'
 import { applyThemeToWidget, LAYOUT_THEMES, type LayoutTheme } from '@shared/widgets/themes'
 import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
@@ -587,7 +587,9 @@ function PropertyPanel(): React.JSX.Element {
               }}
             >
               <option value="">Inherit from global</option>
-              <option value={FORMULA1_FONT_ID}>Formula1 (bundled)</option>
+              <option value={FORMULA1_FONT_ID}>Formula1 — Auto</option>
+              <option value={FORMULA1_BOLD}>Formula1 Bold</option>
+              <option value={FORMULA1_REGULAR}>Formula1 Regular</option>
               {systemFonts.map((font) => (
                 <option key={font} value={font}>
                   {font}
@@ -597,7 +599,8 @@ function PropertyPanel(): React.JSX.Element {
           </label>
           <span className="field__hint">
             Overrides the project-wide default font (Project Settings, in the File menu) for just this widget
-            {selectedIds.length > 1 ? ' selection' : ''}.
+            {selectedIds.length > 1 ? ' selection' : ''}. "Formula1 — Auto" mixes Bold/Regular the way this widget
+            always has; "Formula1 Bold"/"Formula1 Regular" use that one weight for everything in it.
           </span>
         </div>
       )}
