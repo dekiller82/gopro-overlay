@@ -2,6 +2,30 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.11] - 2026-07-21
+
+### Added
+- **Elevation widget** — current altitude readout and/or a distance-based elevation profile graph
+  for the whole session (toggleable independently), from the GPS altitude reading every GoPro clip
+  already carries. Most useful for hillclimbs/rally; a flat closed circuit will understandably look
+  close to a flat line.
+- **G-Force Diagram: numeric readout** — a combined-G value ("0.8G") now shows above the friction
+  circle by default, so the widget actually tells you how many G's you're pulling instead of only
+  showing where on the circle you are.
+- **G-Force Diagram: toggleable axis labels** — the ACCEL/BRAKE/LEFT/RIGHT text can now be turned
+  off independently of the ring/grid, for a cleaner look.
+
+### Fixed
+- **Roll/Lean Angle widget always read a frozen 0°** — root-caused on a real HERO8 Black clip: its
+  GRAV (gravity vector) stream is structurally present (right sample count, right cts spacing) but
+  every single sample is exactly `{0,0,0}` — the metadata slot exists on this camera/firmware but
+  isn't populated with real sensor-fusion output. The app trusted "stream present" as "gravity data
+  available," which froze Roll/Lean at a permanent 0° and silently corrupted the G-Force widget's
+  axis calibration too (both share the same vertical-axis detection, which picks whichever axis has
+  the largest mean magnitude — meaningless when every axis is identically zero). An all-zero GRAV
+  stream is now treated as absent, the same as a camera that never had one, falling back to the
+  accelerometer-tilt estimate like the app already does for older cameras.
+
 ## [0.1.10] - 2026-07-21
 
 ### Changed

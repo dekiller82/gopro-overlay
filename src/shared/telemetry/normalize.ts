@@ -94,6 +94,18 @@ function extractImuStream(stream: RawStream | undefined): ImuSample[] {
   return decimateImuSamples(samples)
 }
 
+/** A real gravity-vector sample is a unit vector (~1g on some axis) -- it can never genuinely read
+ *  exactly {0,0,0}, not even once, for an entire session. Confirmed on a real HERO8 Black file: its
+ *  GRAV stream is structurally present (right sample count, right cts spacing) but every single
+ *  sample is exactly zero -- the metadata slot exists but isn't populated with real sensor-fusion
+ *  output on this camera/firmware. Trusting that as "gravity available" would freeze the Roll/Lean
+ *  widget at a permanent 0deg reading, and silently corrupt calibrateAxes's vertical-axis detection
+ *  (which picks whichever axis has the largest mean magnitude -- meaningless when every axis is
+ *  identically zero) for the G-Force widget too, since both share the same calibration. */
+function isGravityDataUsable(samples: ImuSample[]): boolean {
+  return samples.length > 0 && samples.some((s) => Math.abs(s.x) > 1e-6 || Math.abs(s.y) > 1e-6 || Math.abs(s.z) > 1e-6)
+}
+
 /**
  * Accelerometer (ACCL) and gyroscope (GYRO) are present on every GoPro model tested (Hero5/7/11);
  * the gravity vector (GRAV) only exists on newer cameras/firmware and is legitimately absent
@@ -109,7 +121,8 @@ export function normalizeImuTelemetry(raw: RawGoProTelemetry): ImuTelemetryResul
     const streams = device.streams ?? {}
     const accel = extractImuStream(streams.ACCL)
     const gyro = extractImuStream(streams.GYRO)
-    const gravity = extractImuStream(streams.GRAV)
+    const rawGravity = extractImuStream(streams.GRAV)
+    const gravity = isGravityDataUsable(rawGravity) ? rawGravity : []
     if (accel.length > 0 || gyro.length > 0 || gravity.length > 0) {
       return { accel, gyro, gravity }
     }

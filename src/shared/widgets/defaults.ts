@@ -12,6 +12,7 @@ import { DEFAULT_ROLL_ANGLE_STYLE } from '../render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '../render/drawSessionSummary'
 import { DEFAULT_LAP_CONSISTENCY_STYLE } from '../render/drawLapConsistency'
 import { DEFAULT_CUSTOM_TEXT_STYLE } from '../render/drawCustomText'
+import { DEFAULT_ELEVATION_STYLE } from '../render/drawElevation'
 import type {
   GpsTrackWidgetInstance,
   SpeedometerAnalogWidgetInstance,
@@ -27,6 +28,7 @@ import type {
   SessionSummaryWidgetInstance,
   LapConsistencyWidgetInstance,
   CustomTextWidgetInstance,
+  ElevationWidgetInstance,
   WidgetInstance
 } from '../types'
 
@@ -245,6 +247,21 @@ export function createCustomTextWidget(): CustomTextWidgetInstance {
   }
 }
 
+export function createElevationWidget(): ElevationWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'elevation',
+    x: 0.04,
+    y: 0.32,
+    w: 0.22,
+    h: 0.28,
+    rotation: 0,
+    zIndex: 1,
+    locked: false,
+    style: { ...DEFAULT_ELEVATION_STYLE }
+  }
+}
+
 export function createWidget(type: WidgetInstance['type']): WidgetInstance {
   switch (type) {
     case 'gpsTrack':
@@ -275,5 +292,7 @@ export function createWidget(type: WidgetInstance['type']): WidgetInstance {
       return createLapConsistencyWidget()
     case 'customText':
       return createCustomTextWidget()
+    case 'elevation':
+      return createElevationWidget()
   }
 }

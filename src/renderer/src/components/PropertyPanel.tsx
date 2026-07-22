@@ -15,6 +15,7 @@ import { DEFAULT_ROLL_ANGLE_STYLE } from '@shared/render/drawRollAngle'
 import { DEFAULT_SESSION_SUMMARY_STYLE } from '@shared/render/drawSessionSummary'
 import { DEFAULT_LAP_CONSISTENCY_STYLE } from '@shared/render/drawLapConsistency'
 import { DEFAULT_CUSTOM_TEXT_STYLE } from '@shared/render/drawCustomText'
+import { DEFAULT_ELEVATION_STYLE } from '@shared/render/drawElevation'
 import { applyThemeToWidget, LAYOUT_THEMES, type LayoutTheme } from '@shared/widgets/themes'
 import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
@@ -66,6 +67,8 @@ function widgetLabel(type: WidgetInstance['type']): string {
       return 'Lap Consistency'
     case 'customText':
       return 'Custom Text/Logo'
+    case 'elevation':
+      return 'Elevation'
   }
 }
 
@@ -330,6 +333,9 @@ function PropertyPanel(): React.JSX.Element {
           </button>
           <button className="property-panel__add" onClick={() => addWidget('customText')}>
             + Custom Text/Logo
+          </button>
+          <button className="property-panel__add" onClick={() => addWidget('elevation')}>
+            + Elevation
           </button>
         </div>
         <ul className="widget-list">
@@ -2041,6 +2047,33 @@ function PropertyPanel(): React.JSX.Element {
             />
           </label>
 
+          <label className="field field--checkbox">
+            <input
+              type="checkbox"
+              checked={style.showAxisLabels}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showAxisLabels: e.target.checked } })}
+            />
+            <span>Show ACCEL/BRAKE/LEFT/RIGHT labels</span>
+          </label>
+
+          <label className="field field--checkbox">
+            <input
+              type="checkbox"
+              checked={style.showValueReadout}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showValueReadout: e.target.checked } })}
+            />
+            <span>Show numeric G readout</span>
+          </label>
+
+          <label className="field">
+            <span>Readout color</span>
+            <input
+              type="color"
+              value={style.valueColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, valueColor: e.target.value } })}
+            />
+          </label>
+
           <label className="field">
             <span>Background color</span>
             <input
@@ -2644,6 +2677,187 @@ function PropertyPanel(): React.JSX.Element {
                   step={0.05}
                   value={style.imageScale}
                   onChange={(e) => updateWidget(selected.id, { style: { ...style, imageScale: Number(e.target.value) } })}
+                />
+              </label>
+            </>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'elevation' && (() => {
+        const style = { ...DEFAULT_ELEVATION_STYLE, ...selected.style }
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Elevation style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">
+            Current altitude and/or a distance-based elevation profile for the whole session, from the GoPro's own GPS
+            altitude reading. Most useful for hillclimbs/rally -- a flat closed circuit will understandably look close
+            to a flat line.
+          </span>
+
+          <label className="field">
+            <span>Mode</span>
+            <select
+              value={style.mode}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, mode: e.target.value as 'readout' | 'graph' | 'both' } })}
+            >
+              <option value="both">Readout + graph</option>
+              <option value="readout">Readout only</option>
+              <option value="graph">Graph only</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Unit</span>
+            <select value={style.unit} onChange={(e) => updateWidget(selected.id, { style: { ...style, unit: e.target.value as 'kmh' | 'mph' | 'kn' } })}>
+              <option value="kmh">Meters</option>
+              <option value="mph">Feet</option>
+            </select>
+          </label>
+
+          {style.mode !== 'graph' && (
+            <>
+              <label className="field">
+                <span>Label</span>
+                <input type="text" value={style.label} onChange={(e) => updateWidget(selected.id, { style: { ...style, label: e.target.value } })} />
+              </label>
+
+              <label className="field">
+                <span>Label color</span>
+                <input type="color" value={style.labelColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, labelColor: e.target.value } })} />
+              </label>
+
+              <label className="field">
+                <span>Value color</span>
+                <input type="color" value={style.color} onChange={(e) => updateWidget(selected.id, { style: { ...style, color: e.target.value } })} />
+              </label>
+
+              <label className="field">
+                <span>Smoothing ({style.smoothingMs}ms)</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={2000}
+                  step={50}
+                  value={style.smoothingMs}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, smoothingMs: Number(e.target.value) } })}
+                />
+              </label>
+
+              <label className="field">
+                <span>Text outline ({style.textOutlineWidth}px)</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={6}
+                  step={1}
+                  value={style.textOutlineWidth}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+                />
+              </label>
+
+              {style.textOutlineWidth > 0 && (
+                <label className="field">
+                  <span>Outline color</span>
+                  <input
+                    type="color"
+                    value={style.textOutlineColor}
+                    onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+                  />
+                </label>
+              )}
+            </>
+          )}
+
+          {style.mode !== 'readout' && (
+            <>
+              <label className="field">
+                <span>Graph line color</span>
+                <input
+                  type="color"
+                  value={style.graphLineColor}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, graphLineColor: e.target.value } })}
+                />
+              </label>
+
+              <label className="field">
+                <span>Graph fill opacity ({style.graphFillOpacity.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={style.graphFillOpacity}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, graphFillOpacity: Number(e.target.value) } })}
+                />
+              </label>
+
+              <label className="field">
+                <span>Grid color</span>
+                <input type="color" value={style.gridColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, gridColor: e.target.value } })} />
+              </label>
+
+              <label className="field">
+                <span>Grid opacity ({style.gridOpacity.toFixed(2)})</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={style.gridOpacity}
+                  onChange={(e) => updateWidget(selected.id, { style: { ...style, gridOpacity: Number(e.target.value) } })}
                 />
               </label>
             </>

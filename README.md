@@ -23,7 +23,7 @@ speedometer widgets running together over real footage.
 - **Multi-clip import** — select every part of a chapter-split GoPro recording
   (`GH010230.MP4`, `GH020230.MP4`, ...) at once; they're stitched into a single timeline with
   continuous telemetry.
-- **14 widgets** (13 telemetry-driven, plus a freeform text/logo widget), each fully configurable
+- **15 widgets** (14 telemetry-driven, plus a freeform text/logo widget), each fully configurable
   (colors, fonts, size, smoothing) via the property panel — see [Widgets](#widgets) below for what
   each one shows and its own options.
 - **Lap & sector detection** from a start/finish line you place on the GPS track — everything
@@ -121,9 +121,11 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
 
 - **G-Force friction circle** — plots lateral (cornering) vs. longitudinal (braking/accelerating) G
   on a ring-gridded scatter, with a fading trail behind the current smoothed reading (trail duration,
-  smoothing window, grid radius in G, and all colors are adjustable). Axis mapping is
-  auto-calibrated per import from the accelerometer + GPS; a manual override (pick the vertical and
-  longitudinal axis index, invert any axis) is available if auto-calibration picks the wrong one.
+  smoothing window, grid radius in G, and all colors are adjustable), plus a numeric combined-G
+  readout above the diagram and independently-toggleable ACCEL/BRAKE/LEFT/RIGHT axis labels. Axis
+  mapping is auto-calibrated per import from the accelerometer + GPS; a manual override (pick the
+  vertical and longitudinal axis index, invert any axis) is available if auto-calibration picks the
+  wrong one.
 
 - **Roll / lean angle** — a numeric readout plus a tilting horizon bar (degrees-per-full-swing is
   adjustable). Uses the camera's gravity-vector stream when present, falling back to an
@@ -143,6 +145,11 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
 - **Custom Text/Logo** — the one widget not derived from telemetry at all: freeform multi-line
   text (driver name, event title, sponsor watermark) and/or an uploaded image, stacked
   image-above-text when both are set.
+
+- **Elevation** — current altitude readout and/or a distance-based elevation profile for the whole
+  session (readout, graph, or both, independently toggleable), with a moving marker showing where
+  you are on the profile right now. Most useful for hillclimbs/rally; on a flat closed circuit it'll
+  understandably look close to a flat line.
 
 ## Requirements
 

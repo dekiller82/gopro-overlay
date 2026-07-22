@@ -136,6 +136,7 @@ function WidgetCanvas({
     let gForceReading
     let gForceHistory
     let rollAngleReading
+    let elevationReading
     if (widget.type === 'gForceDiagram') {
       const cal = widget.style.useManualAxes
         ? buildManualCalibration(widget.style.verticalAxis, widget.style.longitudinalAxis, widget.style.verticalInverted, widget.style.longitudinalInverted, widget.style.lateralInverted)
@@ -147,6 +148,8 @@ function WidgetCanvas({
         ? buildManualCalibrationForRoll(widget.style.verticalAxis, widget.style.lateralAxis, widget.style.verticalInverted, widget.style.lateralInverted)
         : undefined
       rollAngleReading = sampler.rollAngleAt(currentTimeMs, widget.style.smoothingMs, cal)
+    } else if (widget.type === 'elevation') {
+      elevationReading = sampler.elevationAt(currentTimeMs, widget.style.smoothingMs)
     }
 
     const rect = { x: 0, y: 0, w: pixelWidth, h: pixelHeight }
@@ -176,7 +179,9 @@ function WidgetCanvas({
       gForceReading,
       gForceHistory,
       rollAngleReading,
-      hasImuData: sampler.hasImuData
+      hasImuData: sampler.hasImuData,
+      elevationReading,
+      elevationProfile: sampler.elevationProfile
     })
   }, [
     widget,

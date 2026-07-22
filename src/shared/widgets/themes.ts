@@ -66,5 +66,7 @@ export function applyThemeToWidget(widget: WidgetInstance, theme: LayoutTheme): 
       // Its image (a logo/watermark) is left untouched -- only the text/background colors are
       // theme-driven, same reasoning as every other widget's non-color fields.
       return { ...widget, style: { ...widget.style, textColor: primary, backgroundColor, backgroundOpacity } }
+    case 'elevation':
+      return { ...widget, style: { ...widget.style, color: primary, labelColor: label, graphLineColor: accent, backgroundColor, backgroundOpacity } }
   }
 }

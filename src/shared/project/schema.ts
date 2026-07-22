@@ -229,6 +229,11 @@ const gForceDiagramStyleSchema = z.object({
   ringColor: z.string(),
   ringOpacity: z.number(),
   axisLabelColor: z.string(),
+  // .default(true/'#ffffff') -- added after this widget shipped, so an already-saved project's
+  // widget still parses; true/white keeps the pre-existing look (labels were always shown before).
+  showAxisLabels: z.boolean().default(true),
+  showValueReadout: z.boolean().default(true),
+  valueColor: z.string().default('#ffffff'),
   backgroundColor: z.string(),
   backgroundOpacity: z.number(),
   cornerRadius: z.number().default(12),
@@ -342,6 +347,31 @@ const customTextWidgetSchema = z.object({
   style: customTextStyleSchema
 })
 
+const elevationStyleSchema = z.object({
+  mode: z.enum(['readout', 'graph', 'both']),
+  label: z.string(),
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  color: z.string(),
+  labelColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number(),
+  smoothingMs: z.number(),
+  graphLineColor: z.string(),
+  graphFillOpacity: z.number(),
+  gridColor: z.string(),
+  gridOpacity: z.number()
+})
+
+const elevationWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('elevation'),
+  ...transformFields,
+  style: elevationStyleSchema
+})
+
 export const widgetSchema = z.discriminatedUnion('type', [
   gpsTrackWidgetSchema,
   speedometerAnalogWidgetSchema,
@@ -356,7 +386,8 @@ export const widgetSchema = z.discriminatedUnion('type', [
   rollAngleWidgetSchema,
   sessionSummaryWidgetSchema,
   lapConsistencyWidgetSchema,
-  customTextWidgetSchema
+  customTextWidgetSchema,
+  elevationWidgetSchema
 ])
 
 export const videoMetaSchema = z.object({

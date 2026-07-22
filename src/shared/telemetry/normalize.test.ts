@@ -1,5 +1,75 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeGpsTelemetry, type RawGoProTelemetry } from './normalize'
+import { normalizeGpsTelemetry, normalizeImuTelemetry, type RawGoProTelemetry } from './normalize'
+
+function rawWithImuStreams(streams: {
+  ACCL?: { cts: number; value: number[] }[]
+  GYRO?: { cts: number; value: number[] }[]
+  GRAV?: { cts: number; value: number[] }[]
+}): RawGoProTelemetry {
+  const built: Record<string, { samples: { cts: number; value: number[] }[] }> = {}
+  if (streams.ACCL) built.ACCL = { samples: streams.ACCL }
+  if (streams.GYRO) built.GYRO = { samples: streams.GYRO }
+  if (streams.GRAV) built.GRAV = { samples: streams.GRAV }
+  return {
+    1: {
+      'device name': 'Test Camera',
+      streams: built
+    }
+  }
+}
+
+describe('normalizeImuTelemetry', () => {
+  it('keeps a real (non-zero) gravity stream', () => {
+    const result = normalizeImuTelemetry(
+      rawWithImuStreams({
+        ACCL: [{ cts: 0, value: [9.8, 0.1, 0.2] }],
+        GRAV: [
+          { cts: 0, value: [0.98, 0.01, 0.02] },
+          { cts: 100, value: [0.97, 0.02, 0.01] }
+        ]
+      })
+    )
+    expect(result.gravity).toHaveLength(2)
+  })
+
+  // Confirmed against a real HERO8 Black clip: gopro-telemetry returns a structurally valid GRAV
+  // stream (right sample count, right cts spacing) but every single sample is exactly {0,0,0} --
+  // the metadata slot exists on this camera/firmware but isn't populated with real sensor-fusion
+  // output. Before this fix, that silently froze the Roll/Lean widget at a permanent 0deg reading
+  // and corrupted calibrateAxes's vertical-axis detection for the G-Force widget too.
+  it('treats an all-zero GRAV stream as absent, not real gravity data', () => {
+    const result = normalizeImuTelemetry(
+      rawWithImuStreams({
+        ACCL: [{ cts: 0, value: [9.8, 0.1, 0.2] }],
+        GRAV: [
+          { cts: 0, value: [0, 0, 0] },
+          { cts: 100, value: [0, 0, 0] },
+          { cts: 200, value: [0, 0, 0] }
+        ]
+      })
+    )
+    expect(result.gravity).toEqual([])
+    expect(result.accel).toHaveLength(1)
+  })
+
+  it('keeps gravity if only SOME samples are zero (a momentary sensor glitch, not a broken stream)', () => {
+    const result = normalizeImuTelemetry(
+      rawWithImuStreams({
+        GRAV: [
+          { cts: 0, value: [0, 0, 0] },
+          { cts: 200, value: [0.98, 0.01, 0.02] },
+          { cts: 400, value: [0.97, 0.02, 0.01] }
+        ]
+      })
+    )
+    expect(result.gravity).toHaveLength(3)
+  })
+
+  it('handles no IMU streams at all without throwing', () => {
+    const result = normalizeImuTelemetry(rawWithImuStreams({}))
+    expect(result).toEqual({ accel: [], gyro: [], gravity: [] })
+  })
+})
 
 function rawWithGps5Samples(samples: { cts: number; value: number[] }[]): RawGoProTelemetry {
   return {

@@ -210,3 +210,40 @@ describe('createTelemetrySampler sessionStatsAt (Session Summary widget)', () =>
     expect(sampler.sessionStatsAt(0, 1000)).toEqual({ totalDistanceM: 0, maxSpeedMps: 0 })
   })
 })
+
+describe('createTelemetrySampler elevation (Elevation widget)', () => {
+  const samples = [
+    makeSample(0, { lat: 51.5, lon: -0.1, altitude: 100 }),
+    makeSample(1000, { lat: 51.501, lon: -0.1, altitude: 120 }),
+    makeSample(2000, { lat: 51.502, lon: -0.1, altitude: 90 }),
+    makeSample(3000, { lat: 51.503, lon: -0.1, altitude: 110 })
+  ]
+
+  it('elevationAt reads the (smoothed) altitude near a given cts', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    // Light smoothing so it stays close to the raw sample at that exact instant.
+    expect(sampler.elevationAt(0, 60)).toBeCloseTo(100, 0)
+    expect(sampler.elevationAt(1000, 60)).toBeCloseTo(120, 0)
+  })
+
+  it('elevationAt returns 0 for an empty sample array without throwing', () => {
+    const sampler = createTelemetrySampler(makeTelemetry([]))
+    expect(sampler.elevationAt(1000)).toBe(0)
+  })
+
+  it('elevationProfile is 1:1 index-aligned with the samples, pairing cumulative distance with altitude', () => {
+    const sampler = createTelemetrySampler(makeTelemetry(samples))
+    expect(sampler.elevationProfile).toHaveLength(samples.length)
+    expect(sampler.elevationProfile[0]).toEqual({ distanceM: 0, altitude: 100, cts: 0 })
+    expect(sampler.elevationProfile[1].altitude).toBe(120)
+    // Cumulative distance is monotonically non-decreasing (a real GPS arc-length, never goes backwards).
+    for (let i = 1; i < sampler.elevationProfile.length; i++) {
+      expect(sampler.elevationProfile[i].distanceM).toBeGreaterThanOrEqual(sampler.elevationProfile[i - 1].distanceM)
+    }
+  })
+
+  it('elevationProfile is empty for an empty sample array', () => {
+    const sampler = createTelemetrySampler(makeTelemetry([]))
+    expect(sampler.elevationProfile).toEqual([])
+  })
+})

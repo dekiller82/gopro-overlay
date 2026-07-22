@@ -5,7 +5,7 @@ import type { SectorState } from '../telemetry/sectors'
 import type { DeltaState } from '../telemetry/deltaTime'
 import type { ApexEvent } from '../telemetry/apex'
 import type { LapSpeedTrace } from '../telemetry/speedTrace'
-import type { GForceHistoryPoint, GForceReading, RollAngleReading } from '../telemetry/sampleAt'
+import type { ElevationProfilePoint, GForceHistoryPoint, GForceReading, RollAngleReading } from '../telemetry/sampleAt'
 import type { WidgetInstance } from '../types'
 import type { Canvas2DLike, CanvasImageLike, Rect } from './canvas2d'
 import { drawGpsWidget } from './drawGpsWidget'
@@ -21,6 +21,7 @@ import { drawRollAngle } from './drawRollAngle'
 import { drawSessionSummary, type SessionSummaryData } from './drawSessionSummary'
 import { drawLapConsistency } from './drawLapConsistency'
 import { drawCustomText } from './drawCustomText'
+import { drawElevation } from './drawElevation'
 
 export interface WidgetDrawContext {
   trackPoints: ProjectedPoint[]
@@ -75,6 +76,11 @@ export interface WidgetDrawContext {
   /** Only relevant for a 'sessionSummary' widget -- absolute cts (same space as `cts`) at which the
    *  trimmed session ends; style.showLastSeconds counts back from here. */
   sessionEndMs?: number
+  /** Only relevant for an 'elevation' widget -- current reading resolved per widget instance (its
+   *  own smoothing style), the profile is the whole-session static shape shared globally (doesn't
+   *  depend on cts or per-widget style). */
+  elevationReading?: number
+  elevationProfile?: ElevationProfilePoint[]
 }
 
 function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Rect, data: WidgetDrawContext): void {
@@ -163,6 +169,15 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
       return
     case 'customText':
       drawCustomText(ctx, { rect, style: widget.style, image: data.headerImage })
+      return
+    case 'elevation':
+      drawElevation(ctx, {
+        rect,
+        style: widget.style,
+        currentAltitudeM: data.elevationReading ?? 0,
+        profile: data.elevationProfile ?? [],
+        cts: data.cts
+      })
       return
   }
 }

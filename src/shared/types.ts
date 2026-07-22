@@ -185,6 +185,12 @@ export interface CustomTextWidgetInstance extends WidgetTransform {
   style: import('./render/drawCustomText').CustomTextStyle
 }
 
+export interface ElevationWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'elevation'
+  style: import('./render/drawElevation').ElevationStyle
+}
+
 export type WidgetInstance =
   | GpsTrackWidgetInstance
   | SpeedometerAnalogWidgetInstance
@@ -200,6 +206,7 @@ export type WidgetInstance =
   | SessionSummaryWidgetInstance
   | LapConsistencyWidgetInstance
   | CustomTextWidgetInstance
+  | ElevationWidgetInstance
 
 export interface ProjectPayload {
   imported: ImportResult

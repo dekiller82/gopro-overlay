@@ -145,6 +145,7 @@ export async function createFrameRenderer(
       let gForceReading
       let gForceHistory
       let rollAngleReading
+      let elevationReading
       if (widget.type === 'gForceDiagram') {
         const cal = widget.style.useManualAxes
           ? buildManualCalibration(widget.style.verticalAxis, widget.style.longitudinalAxis, widget.style.verticalInverted, widget.style.longitudinalInverted, widget.style.lateralInverted)
@@ -156,6 +157,8 @@ export async function createFrameRenderer(
           ? buildManualCalibrationForRoll(widget.style.verticalAxis, widget.style.lateralAxis, widget.style.verticalInverted, widget.style.lateralInverted)
           : undefined
         rollAngleReading = sampler.rollAngleAt(sampleCts, widget.style.smoothingMs, cal)
+      } else if (widget.type === 'elevation') {
+        elevationReading = sampler.elevationAt(sampleCts, widget.style.smoothingMs)
       }
 
       drawWidget(ctx as unknown as Canvas2DLike, widget, rect, {
@@ -184,7 +187,9 @@ export async function createFrameRenderer(
         gForceReading,
         gForceHistory,
         rollAngleReading,
-        hasImuData: sampler.hasImuData
+        hasImuData: sampler.hasImuData,
+        elevationReading,
+        elevationProfile: sampler.elevationProfile
       })
     }
 

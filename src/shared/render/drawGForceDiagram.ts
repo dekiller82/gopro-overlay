@@ -8,6 +8,12 @@ export interface GForceDiagramStyle {
   ringColor: string
   ringOpacity: number
   axisLabelColor: string
+  /** ACCEL/BRAKE/LEFT/RIGHT text around the ring -- independent of the ring/grid itself
+   *  (ringOpacity), since some users want the grid but not the text, or neither. */
+  showAxisLabels: boolean
+  /** Numeric combined G-force readout ("1.4G") in a header strip above the diagram. */
+  showValueReadout: boolean
+  valueColor: string
   backgroundColor: string
   backgroundOpacity: number
   /** Nominal corner radius (px at the scaleToRect reference size) of the background panel. 0 = square corners. */
@@ -33,6 +39,9 @@ export const DEFAULT_GFORCE_DIAGRAM_STYLE: GForceDiagramStyle = {
   ringColor: '#ffffff',
   ringOpacity: 0.18,
   axisLabelColor: '#ffffff',
+  showAxisLabels: true,
+  showValueReadout: true,
+  valueColor: '#ffffff',
   backgroundColor: '#0a0a10',
   backgroundOpacity: 0.72,
   cornerRadius: 12,
@@ -71,6 +80,9 @@ const RING_COUNT = 4
  * the car's recent grip usage sweeping around the circle. Acceleration plots up, braking plots down;
  * lateral sign follows the session's calibrated axis mapping (see shared/telemetry/imuCalibration.ts) --
  * flip `lateralInverted` in the property panel if left/right reads backwards for your footage.
+ * A numeric combined-G readout (magnitude of the two axes, sqrt(lateral^2 + longitudinal^2)) sits in
+ * its own header strip above the diagram when showValueReadout is on -- the diagram alone only shows
+ * *where* on the circle you are, not the actual G number.
  */
 export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramOptions): void {
   const { rect, style, reading, history, cts, hasImuData } = options
@@ -84,7 +96,6 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
   }
 
   const cx = rect.x + rect.w / 2
-  const cy = rect.y + rect.h / 2
 
   if (!hasImuData) {
     ctx.save()
@@ -92,12 +103,30 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
     ctx.textBaseline = 'middle'
     const text = 'No accelerometer data'
     fitFontSizePx(ctx, text, rect.w * 0.85, rect.h * 0.1, '600', GFORCE_FONT_STACK)
-    drawOutlinedText(ctx, text, cx, cy, style.axisLabelColor, scaleToRect(1.5, rect), '#000000')
+    drawOutlinedText(ctx, text, cx, rect.y + rect.h / 2, style.axisLabelColor, scaleToRect(1.5, rect), '#000000')
     ctx.restore()
     return
   }
 
-  const radiusPx = Math.min(rect.w, rect.h) * 0.42
+  // Reserved header strip for the numeric readout -- the ring diagram fills whatever's left below
+  // it, same "value area carved out of the top" layout RollAngle already uses.
+  const valueAreaH = style.showValueReadout ? rect.h * 0.22 : 0
+  const diagramTop = rect.y + valueAreaH
+  const diagramH = rect.h - valueAreaH
+  const cy = diagramTop + diagramH / 2
+
+  if (style.showValueReadout) {
+    const combinedG = Math.sqrt(reading.lateralG * reading.lateralG + reading.longitudinalG * reading.longitudinalG)
+    const valueText = `${combinedG.toFixed(1)}G`
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    fitFontSizePx(ctx, '0.0G', rect.w * 0.6, valueAreaH * 0.7, '700', GFORCE_FONT_STACK)
+    drawOutlinedText(ctx, valueText, cx, rect.y + valueAreaH / 2, style.valueColor, scaleToRect(2, rect), '#000000')
+    ctx.restore()
+  }
+
+  const radiusPx = Math.min(rect.w, diagramH) * 0.42
   const pxPerG = radiusPx / Math.max(0.1, style.maxG)
   const toScreen = (lateralG: number, longitudinalG: number): { x: number; y: number } => ({
     x: cx + lateralG * pxPerG,
@@ -122,13 +151,15 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
     ctx.lineTo(cx, cy + radiusPx)
     ctx.stroke()
     ctx.restore()
+  }
 
+  if (style.showAxisLabels) {
     ctx.save()
     ctx.globalAlpha = 1
     ctx.fillStyle = style.axisLabelColor
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    const labelSize = Math.max(8, Math.round(rect.h * 0.05))
+    const labelSize = Math.max(8, Math.round(diagramH * 0.05))
     ctx.font = `600 ${labelSize}px ${GFORCE_FONT_STACK}`
     ctx.fillText('ACCEL', cx, cy - radiusPx - labelSize * 0.8)
     ctx.fillText('BRAKE', cx, cy + radiusPx + labelSize * 0.8)

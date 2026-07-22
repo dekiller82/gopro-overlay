@@ -35,6 +35,15 @@ export interface SessionStats {
   maxSpeedMps: number
 }
 
+export interface ElevationProfilePoint {
+  /** Cumulative GPS arc-length from the very start of the recording, meters -- the x-axis for the
+   *  Elevation widget's graph (distance-based, not time-based, so the profile's shape matches the
+   *  real geography regardless of how fast/slow any particular section was driven). */
+  distanceM: number
+  altitude: number
+  cts: number
+}
+
 export interface TelemetrySampler {
   /** Raw telemetry samples, e.g. for lap-crossing detection against a start/finish lat/lon. */
   samples: TelemetrySample[]
@@ -79,12 +88,19 @@ export interface TelemetrySampler {
    *  cheap prefix-sum lookup (precomputed once); max speed is a linear scan over just that range's
    *  samples, which is fine since this is only queried once per relevant recompute, not per frame. */
   sessionStatsAt: (startCts: number, endCts: number) => SessionStats
+  /** Static, precomputed altitude-vs-distance profile for the whole session -- the Elevation
+   *  widget's graph draws this once and just moves a "now" marker along it, same "precompute the
+   *  static shape, resolve only the current position per frame" split as trackPoints/dotPosition. */
+  elevationProfile: ElevationProfilePoint[]
+  /** Gaussian-smoothed altitude at `cts`, meters -- for the Elevation widget's numeric readout. */
+  elevationAt: (cts: number, smoothingMs?: number) => number
 }
 
 const MIN_SMOOTHING_MS = 60
 export const DEFAULT_SPEED_SMOOTHING_MS = 350
 export const DEFAULT_GFORCE_SMOOTHING_MS = 150
 export const DEFAULT_ROLL_SMOOTHING_MS = 150
+export const DEFAULT_ELEVATION_SMOOTHING_MS = 500
 
 function computeBounds(points: ProjectedPoint[]): TrackBounds {
   if (points.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 }
@@ -138,6 +154,12 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
   const trackCts = samples.map((s) => s.cts)
   const speedBounds = computeSpeedBounds(trackSpeeds)
   const cumDistanceM = computeCumulativeDistanceM(samples)
+  const elevationProfile: ElevationProfilePoint[] = samples.map((s, i) => ({ distanceM: cumDistanceM[i], altitude: s.altitude, cts: s.cts }))
+
+  function elevationAt(cts: number, smoothingMs = DEFAULT_ELEVATION_SMOOTHING_MS): number {
+    if (samples.length === 0) return 0
+    return gaussianSmoothedValueAt(samples, cts, Math.max(MIN_SMOOTHING_MS, smoothingMs), (s) => s.altitude)
+  }
 
   function sessionStatsAt(startCts: number, endCts: number): SessionStats {
     if (samples.length === 0) return { totalDistanceM: 0, maxSpeedMps: 0 }
@@ -204,6 +226,8 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
     gForceAt,
     gForceHistoryAt,
     rollAngleAt,
-    sessionStatsAt
+    sessionStatsAt,
+    elevationProfile,
+    elevationAt
   }
 }
