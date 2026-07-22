@@ -31,6 +31,7 @@ const api = {
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   getChangelog: (): Promise<string> => ipcRenderer.invoke('app:getChangelog'),
   checkForUpdate: (): Promise<UpdateCheckResult | null> => ipcRenderer.invoke('app:checkForUpdate'),
+  listSystemFonts: (): Promise<string[]> => ipcRenderer.invoke('fonts:listSystem'),
   onExportProgress: (callback: (progress: ExportProgress) => void): (() => void) => {
     const listener = (_event: unknown, progress: ExportProgress): void => callback(progress)
     ipcRenderer.on('export:progress', listener)

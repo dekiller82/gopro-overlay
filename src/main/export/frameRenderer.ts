@@ -31,7 +31,10 @@ export async function createFrameRenderer(
   trimEndMs: number,
   /** Absolute cts at which the trimmed session starts -- only needed for the Session Summary
    *  widget's total-duration figure (trimEndMs - trimStartMs). */
-  trimStartMs: number
+  trimStartMs: number,
+  /** Project-wide default font (FORMULA1_FONT_ID or a real system font family) -- any widget's own
+   *  fontFamily overrides this. */
+  defaultFontFamily: string
 ): Promise<(sampleCts: number, elapsedMs: number) => Buffer> {
   registerExportFonts()
 
@@ -211,7 +214,8 @@ export async function createFrameRenderer(
         elevationProfile: sampler.elevationProfile,
         distanceReading,
         headingReading,
-        accelRunState
+        accelRunState,
+        projectFontFamily: defaultFontFamily
       })
     }
 

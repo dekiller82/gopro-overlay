@@ -1,6 +1,6 @@
 import { formatTime } from '../format'
 import type { DeltaState } from '../telemetry/deltaTime'
-import { FORMULA1_BOLD, FORMULA1_REGULAR } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface PredictiveLapTimerStyle {
@@ -39,15 +39,9 @@ export interface DrawPredictiveLapTimerOptions {
   rect: Rect
   style: PredictiveLapTimerStyle
   deltaState: DeltaState | null
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const PREDICTIVE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
-// Formula1 Bold's ':' glyph renders as a period-like blob in this canvas environment (a real bug
-// found via headless render -- the Regular weight's ':' renders correctly, matching the existing
-// elapsed-mode Timer's own font choice for the same kind of colon-bearing ticking value). Used only
-// for the mm:ss.ss predicted time text below; the label/delta sub-readout have no colon and stay Bold.
-const TIME_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
 /** Sized once against a fixed reference, not the live (per-frame-changing) text -- same anti-jitter discipline as every other timer widget in this app. */
 const TIME_SIZING_REFERENCE = '00:00.00'
 const DELTA_SIZING_REFERENCE = '-00.00'
@@ -64,7 +58,14 @@ function formatDelta(ms: number): string {
  *  plus the live delta to it -- i.e. "if you keep this exact gap to your best lap for the rest of the
  *  lap, this is what you'll finish with." Shares the same DeltaState as the Delta Time widget. */
 export function drawPredictiveLapTimer(ctx: Canvas2DLike, options: DrawPredictiveLapTimerOptions): void {
-  const { rect, style, deltaState } = options
+  const { rect, style, deltaState, fontFamily } = options
+  const boldFontStack = resolveFontStack(fontFamily, 'bold')
+  // Formula1 Bold's ':' glyph renders as a period-like blob in this canvas environment (a real bug
+  // found via headless render) -- the Regular weight's ':' renders correctly, so the mm:ss.ss
+  // predicted time text specifically uses 'regular' (matching the elapsed-mode Timer's own choice
+  // for the same kind of colon-bearing ticking value); the label/delta sub-readout have no colon
+  // and stay bold. A real system font has no such bug, so this only matters for the Formula1 sentinel.
+  const timeFontStack = resolveFontStack(fontFamily, 'regular')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -86,7 +87,7 @@ export function drawPredictiveLapTimer(ctx: Canvas2DLike, options: DrawPredictiv
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', PREDICTIVE_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', boldFontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, rect.y + labelH * 0.72, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -97,7 +98,7 @@ export function drawPredictiveLapTimer(ctx: Canvas2DLike, options: DrawPredictiv
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * 0.92, timeH * 0.62, '700', TIME_FONT_STACK)
+  fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * 0.92, timeH * 0.62, '700', timeFontStack)
   drawOutlinedText(ctx, timeText, cx, rect.y + labelH + timeH / 2, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 
@@ -110,7 +111,7 @@ export function drawPredictiveLapTimer(ctx: Canvas2DLike, options: DrawPredictiv
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  fitFontSizePx(ctx, DELTA_SIZING_REFERENCE, rect.w * 0.7, deltaH * 0.65, '700', PREDICTIVE_FONT_STACK)
+  fitFontSizePx(ctx, DELTA_SIZING_REFERENCE, rect.w * 0.7, deltaH * 0.65, '700', boldFontStack)
   drawFixedWidthText(ctx, deltaText, cx, rect.y + labelH + timeH + deltaH / 2, deltaColor, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }

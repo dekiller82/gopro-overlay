@@ -1,5 +1,5 @@
 import type { GForceHistoryPoint, GForceReading } from '../telemetry/sampleAt'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface GForceDiagramStyle {
@@ -67,10 +67,9 @@ export interface DrawGForceDiagramOptions {
   /** Current cts -- used to fade the trail by each point's own age. */
   cts: number
   hasImuData: boolean
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const GFORCE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 const RING_COUNT = 4
 
 /**
@@ -85,7 +84,8 @@ const RING_COUNT = 4
  * *where* on the circle you are, not the actual G number.
  */
 export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramOptions): void {
-  const { rect, style, reading, history, cts, hasImuData } = options
+  const { rect, style, reading, history, cts, hasImuData, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -102,7 +102,7 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const text = 'No accelerometer data'
-    fitFontSizePx(ctx, text, rect.w * 0.85, rect.h * 0.1, '600', GFORCE_FONT_STACK)
+    fitFontSizePx(ctx, text, rect.w * 0.85, rect.h * 0.1, '600', fontStack)
     drawOutlinedText(ctx, text, cx, rect.y + rect.h / 2, style.axisLabelColor, scaleToRect(1.5, rect), '#000000')
     ctx.restore()
     return
@@ -121,7 +121,7 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, '0.0G', rect.w * 0.6, valueAreaH * 0.7, '700', GFORCE_FONT_STACK)
+    fitFontSizePx(ctx, '0.0G', rect.w * 0.6, valueAreaH * 0.7, '700', fontStack)
     drawOutlinedText(ctx, valueText, cx, rect.y + valueAreaH / 2, style.valueColor, scaleToRect(2, rect), '#000000')
     ctx.restore()
   }
@@ -160,7 +160,7 @@ export function drawGForceDiagram(ctx: Canvas2DLike, options: DrawGForceDiagramO
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const labelSize = Math.max(8, Math.round(diagramH * 0.05))
-    ctx.font = `600 ${labelSize}px ${GFORCE_FONT_STACK}`
+    ctx.font = `600 ${labelSize}px ${fontStack}`
     ctx.fillText('ACCEL', cx, cy - radiusPx - labelSize * 0.8)
     ctx.fillText('BRAKE', cx, cy + radiusPx + labelSize * 0.8)
     ctx.textAlign = 'left'

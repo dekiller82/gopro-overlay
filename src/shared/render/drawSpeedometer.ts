@@ -1,6 +1,6 @@
 import { convertSpeed, speedUnitLabel, type SpeedUnit } from '../units'
 import { DEFAULT_SPEED_SMOOTHING_MS } from '../telemetry/sampleAt'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SpeedometerStyle {
@@ -43,13 +43,12 @@ export interface DrawSpeedometerOptions {
   rect: Rect
   speedMps: number
   style: SpeedometerStyle
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const SPEED_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
-
 export function drawSpeedometerDigital(ctx: Canvas2DLike, options: DrawSpeedometerOptions): void {
-  const { rect, speedMps, style } = options
+  const { rect, speedMps, style, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
   const value = convertSpeed(speedMps, style.unit)
   const cx = rect.x + rect.w / 2
   const outlineWidth = scaleToRect(style.textOutlineWidth, rect)
@@ -81,11 +80,11 @@ export function drawSpeedometerDigital(ctx: Canvas2DLike, options: DrawSpeedomet
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.font = `700 ${Math.round(valueFontSize)}px ${SPEED_FONT_STACK}`
+  ctx.font = `700 ${Math.round(valueFontSize)}px ${fontStack}`
   drawOutlinedText(ctx, Math.round(value).toString(), cx, valueBaselineY, style.color, outlineWidth, style.textOutlineColor)
 
   if (style.showUnit) {
-    ctx.font = `600 ${Math.round(unitFontSize)}px ${SPEED_FONT_STACK}`
+    ctx.font = `600 ${Math.round(unitFontSize)}px ${fontStack}`
     drawOutlinedText(ctx, speedUnitLabel(style.unit), cx, valueBaselineY + unitGap + unitCapHeight, style.accentColor, outlineWidth, style.textOutlineColor)
   }
   ctx.restore()
@@ -111,7 +110,8 @@ function niceTickStep(span: number, targetCount: number): number {
 }
 
 export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedometerOptions): void {
-  const { rect, speedMps, style } = options
+  const { rect, speedMps, style, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
   const value = convertSpeed(speedMps, style.unit)
   const span = style.max - style.min || 1
   const clamped = Math.min(style.max, Math.max(style.min, value))
@@ -168,7 +168,7 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = `600 ${Math.round(radius * 0.16)}px ${SPEED_FONT_STACK}`
+  ctx.font = `600 ${Math.round(radius * 0.16)}px ${fontStack}`
   for (let i = 0; i * MINOR_SUBDIVISIONS <= tickCount; i++) {
     const tickValue = style.min + i * majorStep
     const angle = GAUGE_START_ANGLE + ((tickValue - style.min) / span) * GAUGE_SWEEP
@@ -188,11 +188,11 @@ export function drawSpeedometerAnalog(ctx: Canvas2DLike, options: DrawSpeedomete
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  ctx.font = `700 ${Math.round(radius * 0.5)}px ${SPEED_FONT_STACK}`
+  ctx.font = `700 ${Math.round(radius * 0.5)}px ${fontStack}`
   drawOutlinedText(ctx, Math.round(value).toString(), cx, cy + radius * 0.2, style.color, outlineWidth, style.textOutlineColor)
 
   if (style.showUnit) {
-    ctx.font = `600 ${Math.round(radius * 0.18)}px ${SPEED_FONT_STACK}`
+    ctx.font = `600 ${Math.round(radius * 0.18)}px ${fontStack}`
     drawOutlinedText(ctx, speedUnitLabel(style.unit), cx, cy + radius * 0.44, style.accentColor, outlineWidth, style.textOutlineColor)
   }
   ctx.restore()

@@ -99,6 +99,10 @@ export interface WidgetTransform {
   /** When true, blocks drag/resize (and multi-select group-move) for this widget -- for pinning
    *  placement once it's dialed in without it accidentally moving while working on neighbors. */
   locked: boolean
+  /** A real OS-installed font family name, `FORMULA1_FONT_ID` (the bundled default look), or `null`
+   *  to inherit `ProjectPayload.defaultFontFamily` -- see shared/render/fonts.ts's resolveFontStack,
+   *  the single place this is actually resolved to a drawable font stack. */
+  fontFamily: string | null
 }
 
 export interface GpsTrackWidgetInstance extends WidgetTransform {
@@ -249,6 +253,9 @@ export interface ProjectPayload {
    *  what the plain elapsed-mode timer widget displays and what export actually renders. */
   trimStartMs: number
   trimEndMs: number
+  /** Project-wide default font -- `FORMULA1_FONT_ID` or a real OS-installed font family name (see
+   *  shared/render/fonts.ts). Any widget's own `fontFamily` overrides this when set. */
+  defaultFontFamily: string
 }
 
 /** One entry in the "recently opened" list on the start screen -- persisted to a file in the app's

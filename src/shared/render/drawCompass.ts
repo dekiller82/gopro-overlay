@@ -1,4 +1,4 @@
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface CompassStyle {
@@ -30,10 +30,9 @@ export interface DrawCompassOptions {
   style: CompassStyle
   /** Degrees, 0-360 (0=N, 90=E, ...) -- resolved by the caller via sampler.headingAt. */
   headingDeg: number
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const COMPASS_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 const COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
 
 function compassPointLabel(deg: number): string {
@@ -52,7 +51,8 @@ function formatHeading(deg: number): string {
  * meaninglessly while stationary (see sampleAt.ts's headingAt/computeHeadingComponents).
  */
 export function drawCompass(ctx: Canvas2DLike, options: DrawCompassOptions): void {
-  const { rect, style, headingDeg } = options
+  const { rect, style, headingDeg, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -71,7 +71,7 @@ export function drawCompass(ctx: Canvas2DLike, options: DrawCompassOptions): voi
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', COMPASS_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', fontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, rect.y + labelH * 0.72, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -81,7 +81,7 @@ export function drawCompass(ctx: Canvas2DLike, options: DrawCompassOptions): voi
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  fitFontSizePx(ctx, '000° WSW', rect.w * 0.85, valueAreaH * 0.6, '700', COMPASS_FONT_STACK)
+  fitFontSizePx(ctx, '000° WSW', rect.w * 0.85, valueAreaH * 0.6, '700', fontStack)
   drawOutlinedText(ctx, valueText, cx, rect.y + labelH + valueAreaH / 2, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }

@@ -7,6 +7,7 @@ import type { ApexEvent } from '../telemetry/apex'
 import type { LapSpeedTrace } from '../telemetry/speedTrace'
 import type { ElevationProfilePoint, GForceHistoryPoint, GForceReading, RollAngleReading } from '../telemetry/sampleAt'
 import type { AccelRunState } from '../telemetry/accelRuns'
+import { FORMULA1_FONT_ID } from './fonts'
 import type { WidgetInstance } from '../types'
 import type { Canvas2DLike, CanvasImageLike, Rect } from './canvas2d'
 import { drawGpsWidget } from './drawGpsWidget'
@@ -95,9 +96,21 @@ export interface WidgetDrawContext {
    *  instance (its target speeds/thresholds are per-widget style, same as Apex Speed Callout's own
    *  detection thresholds), getAccelRunStateAt resolved fresh per frame from that. */
   accelRunState?: AccelRunState
+  /** Project-wide default font (FORMULA1_FONT_ID or a real system font family), supplied by the
+   *  caller from ProjectPayload.defaultFontFamily/projectStore -- resolveEffectiveFontFamily below
+   *  is the one place a widget's own fontFamily overrides this. */
+  projectFontFamily?: string
+}
+
+/** widget.fontFamily (per-widget override) wins when set; otherwise falls back to the project-wide
+ *  default, then the bundled Formula1 sentinel -- the single resolution point every draw*.ts call
+ *  below reads from, so no draw file needs to know about this fallback chain itself. */
+function resolveEffectiveFontFamily(widget: WidgetInstance, data: WidgetDrawContext): string {
+  return widget.fontFamily || data.projectFontFamily || FORMULA1_FONT_ID
 }
 
 function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Rect, data: WidgetDrawContext): void {
+  const fontFamily = resolveEffectiveFontFamily(widget, data)
   switch (widget.type) {
     case 'gpsTrack':
       drawGpsWidget(ctx, {
@@ -115,10 +128,10 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
       })
       return
     case 'speedometerAnalog':
-      drawSpeedometerAnalog(ctx, { rect, style: widget.style, speedMps: data.speedMps })
+      drawSpeedometerAnalog(ctx, { rect, style: widget.style, speedMps: data.speedMps, fontFamily })
       return
     case 'speedometerDigital':
-      drawSpeedometerDigital(ctx, { rect, style: widget.style, speedMps: data.speedMps })
+      drawSpeedometerDigital(ctx, { rect, style: widget.style, speedMps: data.speedMps, fontFamily })
       return
     case 'timer':
       drawTimer(ctx, {
@@ -127,27 +140,29 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         elapsedMs: data.elapsedMs,
         lapState: data.lapState,
         headerImage: data.headerImage,
-        fastestLapIcon: data.fastestLapIcon
+        fastestLapIcon: data.fastestLapIcon,
+        fontFamily
       })
       return
     case 'sectorTimer':
-      drawSectorTimer(ctx, { rect, style: widget.style, sectorState: data.sectorState ?? null })
+      drawSectorTimer(ctx, { rect, style: widget.style, sectorState: data.sectorState ?? null, fontFamily })
       return
     case 'deltaTime':
-      drawDeltaTime(ctx, { rect, style: widget.style, deltaState: data.deltaState ?? null })
+      drawDeltaTime(ctx, { rect, style: widget.style, deltaState: data.deltaState ?? null, fontFamily })
       return
     case 'predictiveLapTimer':
-      drawPredictiveLapTimer(ctx, { rect, style: widget.style, deltaState: data.deltaState ?? null })
+      drawPredictiveLapTimer(ctx, { rect, style: widget.style, deltaState: data.deltaState ?? null, fontFamily })
       return
     case 'apexSpeedCallout':
-      drawApexSpeedCallout(ctx, { rect, style: widget.style, events: data.apexEvents ?? [], cts: data.cts })
+      drawApexSpeedCallout(ctx, { rect, style: widget.style, events: data.apexEvents ?? [], cts: data.cts, fontFamily })
       return
     case 'speedDistanceGraph':
       drawSpeedDistanceGraph(ctx, {
         rect,
         style: widget.style,
         lapTraces: data.lapSpeedTraces ?? [],
-        currentLapTrace: data.currentLapSpeedTrace ?? null
+        currentLapTrace: data.currentLapSpeedTrace ?? null,
+        fontFamily
       })
       return
     case 'gForceDiagram':
@@ -157,7 +172,8 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         reading: data.gForceReading ?? { lateralG: 0, longitudinalG: 0 },
         history: data.gForceHistory ?? [],
         cts: data.cts,
-        hasImuData: data.hasImuData ?? false
+        hasImuData: data.hasImuData ?? false,
+        fontFamily
       })
       return
     case 'rollAngle':
@@ -165,7 +181,8 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         rect,
         style: widget.style,
         reading: data.rollAngleReading ?? { degrees: 0, source: 'accelFallback' },
-        hasImuData: data.hasImuData ?? false
+        hasImuData: data.hasImuData ?? false,
+        fontFamily
       })
       return
     case 'sessionSummary':
@@ -175,14 +192,15 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         style: widget.style,
         data: data.sessionSummaryData,
         cts: data.cts,
-        sessionEndMs: data.sessionEndMs
+        sessionEndMs: data.sessionEndMs,
+        fontFamily
       })
       return
     case 'lapConsistency':
-      drawLapConsistency(ctx, { rect, style: widget.style, lapState: data.lapState ?? null })
+      drawLapConsistency(ctx, { rect, style: widget.style, lapState: data.lapState ?? null, fontFamily })
       return
     case 'customText':
-      drawCustomText(ctx, { rect, style: widget.style, image: data.headerImage })
+      drawCustomText(ctx, { rect, style: widget.style, image: data.headerImage, fontFamily })
       return
     case 'elevation':
       drawElevation(ctx, {
@@ -190,20 +208,22 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         style: widget.style,
         currentAltitudeM: data.elevationReading ?? 0,
         profile: data.elevationProfile ?? [],
-        cts: data.cts
+        cts: data.cts,
+        fontFamily
       })
       return
     case 'distance':
-      drawDistance(ctx, { rect, style: widget.style, distanceM: data.distanceReading ?? 0 })
+      drawDistance(ctx, { rect, style: widget.style, distanceM: data.distanceReading ?? 0, fontFamily })
       return
     case 'compass':
-      drawCompass(ctx, { rect, style: widget.style, headingDeg: data.headingReading ?? 0 })
+      drawCompass(ctx, { rect, style: widget.style, headingDeg: data.headingReading ?? 0, fontFamily })
       return
     case 'accelTimer':
       drawAccelTimer(ctx, {
         rect,
         style: widget.style,
-        state: data.accelRunState ?? { isActive: false, elapsedMs: null, currentSplits: [], bestSplits: [] }
+        state: data.accelRunState ?? { isActive: false, elapsedMs: null, currentSplits: [], bestSplits: [] },
+        fontFamily
       })
       return
   }

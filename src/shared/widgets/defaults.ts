@@ -49,6 +49,7 @@ export function createGpsTrackWidget(): GpsTrackWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_GPS_STYLE }
   }
 }
@@ -64,6 +65,7 @@ export function createSpeedometerAnalogWidget(): SpeedometerAnalogWidgetInstance
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_SPEEDOMETER_STYLE }
   }
 }
@@ -79,6 +81,7 @@ export function createSpeedometerDigitalWidget(): SpeedometerDigitalWidgetInstan
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_SPEEDOMETER_STYLE }
   }
 }
@@ -97,6 +100,7 @@ export function createTimerWidget(): TimerWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_TIMER_STYLE }
   }
 }
@@ -112,6 +116,7 @@ export function createSectorTimerWidget(): SectorTimerWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_SECTOR_TIMER_STYLE }
   }
 }
@@ -127,6 +132,7 @@ export function createDeltaTimeWidget(): DeltaTimeWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_DELTA_TIME_STYLE }
   }
 }
@@ -142,6 +148,7 @@ export function createPredictiveLapTimerWidget(): PredictiveLapTimerWidgetInstan
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_PREDICTIVE_LAP_TIMER_STYLE }
   }
 }
@@ -157,6 +164,7 @@ export function createApexSpeedCalloutWidget(): ApexSpeedCalloutWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_APEX_SPEED_CALLOUT_STYLE }
   }
 }
@@ -172,6 +180,7 @@ export function createSpeedDistanceGraphWidget(): SpeedDistanceGraphWidgetInstan
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_SPEED_DISTANCE_GRAPH_STYLE }
   }
 }
@@ -187,6 +196,7 @@ export function createGForceDiagramWidget(): GForceDiagramWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_GFORCE_DIAGRAM_STYLE }
   }
 }
@@ -202,6 +212,7 @@ export function createRollAngleWidget(): RollAngleWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_ROLL_ANGLE_STYLE }
   }
 }
@@ -219,6 +230,7 @@ export function createSessionSummaryWidget(): SessionSummaryWidgetInstance {
     rotation: 0,
     zIndex: 10,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_SESSION_SUMMARY_STYLE }
   }
 }
@@ -234,6 +246,7 @@ export function createLapConsistencyWidget(): LapConsistencyWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_LAP_CONSISTENCY_STYLE }
   }
 }
@@ -249,6 +262,7 @@ export function createCustomTextWidget(): CustomTextWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_CUSTOM_TEXT_STYLE }
   }
 }
@@ -264,6 +278,7 @@ export function createElevationWidget(): ElevationWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_ELEVATION_STYLE }
   }
 }
@@ -279,6 +294,7 @@ export function createDistanceWidget(): DistanceWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_DISTANCE_STYLE }
   }
 }
@@ -294,6 +310,7 @@ export function createCompassWidget(): CompassWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_COMPASS_STYLE }
   }
 }
@@ -309,6 +326,7 @@ export function createAccelTimerWidget(): AccelTimerWidgetInstance {
     rotation: 0,
     zIndex: 1,
     locked: false,
+    fontFamily: null,
     style: { ...DEFAULT_ACCEL_TIMER_STYLE }
   }
 }

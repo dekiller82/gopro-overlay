@@ -1,6 +1,6 @@
 import { formatTime } from '../format'
 import { convertSpeed, formatDistance, speedUnitLabel, type SpeedUnit } from '../units'
-import { FORMULA1_BOLD, FORMULA1_REGULAR } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SessionSummaryStyle {
@@ -62,11 +62,8 @@ export interface DrawSessionSummaryOptions {
   /** Absolute cts (same space as `cts`) at which the trimmed session ends -- showLastSeconds counts
    *  back from here, not from the untrimmed source file's own end. */
   sessionEndMs: number
+  fontFamily?: string
 }
-
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const TITLE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
-const VALUE_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
 
 interface StatCell {
   label: string
@@ -88,15 +85,16 @@ function drawStatCell(
   rowH: number,
   maxWidth: number,
   style: SessionSummaryStyle,
-  outlineWidth: number
+  outlineWidth: number,
+  fontStack: string
 ): void {
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
-  fitFontSizePx(ctx, cell.label, maxWidth, rowH * 0.24, '600', VALUE_FONT_STACK)
+  fitFontSizePx(ctx, cell.label, maxWidth, rowH * 0.24, '600', fontStack)
   drawOutlinedText(ctx, cell.label, cx, labelY, style.labelColor, outlineWidth, style.textOutlineColor)
 
-  fitFontSizePx(ctx, cell.value, maxWidth, rowH * 0.4, '700', VALUE_FONT_STACK)
+  fitFontSizePx(ctx, cell.value, maxWidth, rowH * 0.4, '700', fontStack)
   drawOutlinedText(ctx, cell.value, cx, valueY, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }
@@ -109,7 +107,9 @@ function drawStatCell(
  * correct whether played back live or scrubbed directly to in the editor.
  */
 export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummaryOptions): void {
-  const { rect, style, data, cts, sessionEndMs } = options
+  const { rect, style, data, cts, sessionEndMs, fontFamily } = options
+  const titleFontStack = resolveFontStack(fontFamily, 'bold')
+  const valueFontStack = resolveFontStack(fontFamily, 'regular')
   const showStartCts = sessionEndMs - style.showLastSeconds * 1000
   if (cts < showStartCts) return
 
@@ -138,7 +138,7 @@ export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummar
   if (style.title) {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.title, rect.w * 0.9, rect.h * 0.11, '700', TITLE_FONT_STACK)
+    fitFontSizePx(ctx, style.title, rect.w * 0.9, rect.h * 0.11, '700', titleFontStack)
     drawOutlinedText(ctx, style.title, cx, titleY, style.accentColor, outlineWidth, style.textOutlineColor)
   }
 
@@ -181,8 +181,8 @@ export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummar
 
   for (let i = 0; i < rows.length; i++) {
     const rowY = rowsTop + rowH * i
-    drawStatCell(ctx, rows[i][0], leftCx, rowY + rowH * 0.28, rowY + rowH * 0.72, rowH, colMaxWidth, style, outlineWidth)
-    drawStatCell(ctx, rows[i][1], rightCx, rowY + rowH * 0.28, rowY + rowH * 0.72, rowH, colMaxWidth, style, outlineWidth)
+    drawStatCell(ctx, rows[i][0], leftCx, rowY + rowH * 0.28, rowY + rowH * 0.72, rowH, colMaxWidth, style, outlineWidth, valueFontStack)
+    drawStatCell(ctx, rows[i][1], rightCx, rowY + rowH * 0.28, rowY + rowH * 0.72, rowH, colMaxWidth, style, outlineWidth, valueFontStack)
   }
 
   // Best sectors, three across, only if at least one is known -- mirrors the Sector Timer widget's
@@ -203,7 +203,8 @@ export function drawSessionSummary(ctx: Canvas2DLike, options: DrawSessionSummar
         rowH * 0.85,
         colW * 0.85,
         style,
-        outlineWidth
+        outlineWidth,
+        valueFontStack
       )
     }
   }

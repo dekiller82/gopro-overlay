@@ -1,6 +1,6 @@
 import type { LapSpeedPoint, LapSpeedTrace } from '../telemetry/speedTrace'
 import { convertSpeed, speedUnitLabel, type SpeedUnit } from '../units'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SpeedDistanceGraphStyle {
@@ -60,10 +60,9 @@ export interface DrawSpeedDistanceGraphOptions {
   lapTraces: LapSpeedTrace[]
   /** The lap currently in progress, recomputed by the caller every frame (grows as the lap continues). Null if no start/finish line is set. */
   currentLapTrace: LapSpeedTrace | null
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const GRAPH_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 const GOLDEN_ANGLE_DEG = 137.508
 const GRID_LINE_COUNT = 4
 
@@ -164,7 +163,8 @@ function buildWindowSegments(lapTraces: LapSpeedTrace[], currentLapTrace: LapSpe
  * laps' preview of what's coming up.
  */
 export function drawSpeedDistanceGraph(ctx: Canvas2DLike, options: DrawSpeedDistanceGraphOptions): void {
-  const { rect, style, lapTraces, currentLapTrace } = options
+  const { rect, style, lapTraces, currentLapTrace, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -230,9 +230,9 @@ export function drawSpeedDistanceGraph(ctx: Canvas2DLike, options: DrawSpeedDist
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
     // Unit label sits above everything else, in its own reserved row at the very top of the widget.
-    ctx.font = `500 ${unitFontSize}px ${GRAPH_FONT_STACK}`
+    ctx.font = `500 ${unitFontSize}px ${fontStack}`
     ctx.fillText(speedUnitLabel(style.unit), plotX + 2, rect.y + unitFontSize * 0.7)
-    ctx.font = `600 ${valueFontSize}px ${GRAPH_FONT_STACK}`
+    ctx.font = `600 ${valueFontSize}px ${fontStack}`
     for (let i = 0; i <= GRID_LINE_COUNT; i++) {
       const speedAtLine = maxSpeed - (speedSpan * i) / GRID_LINE_COUNT
       const y = rect.y + topPad + (plotH * i) / GRID_LINE_COUNT
@@ -287,7 +287,7 @@ export function drawSpeedDistanceGraph(ctx: Canvas2DLike, options: DrawSpeedDist
     ctx.globalAlpha = seg.opacity
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, labelText, rect.w * 0.1, rect.h * 0.09, '700', GRAPH_FONT_STACK)
+    fitFontSizePx(ctx, labelText, rect.w * 0.1, rect.h * 0.09, '700', fontStack)
     drawOutlinedText(ctx, labelText, labelX, labelY, seg.color, outlineWidth, '#000000')
     ctx.restore()
   }

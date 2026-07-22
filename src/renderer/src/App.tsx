@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from './components/Editor'
 import WhatsNewModal from './components/WhatsNewModal'
+import ProjectSettingsModal from './components/ProjectSettingsModal'
 import ToolbarMenu from './components/ToolbarMenu'
 import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
+import { useFontStore } from './store/fontStore'
 import { detectLapCrossings, fastestLapRange } from '@shared/telemetry/laps'
 import { formatTime } from '@shared/format'
 import { DELIVERY_PRESETS, SOURCE_QUALITY_PRESET_ID, findDeliveryPreset } from '@shared/export/deliveryPresets'
@@ -59,6 +61,8 @@ function App(): React.JSX.Element {
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   const setTrim = useProjectStore((s) => s.setTrim)
+  const defaultFontFamily = useProjectStore((s) => s.defaultFontFamily)
+  const setDefaultFontFamily = useProjectStore((s) => s.setDefaultFontFamily)
   const widgets = useWidgetStore((s) => s.widgets)
   const loadWidgets = useWidgetStore((s) => s.loadWidgets)
   const resetWidgets = useWidgetStore((s) => s.reset)
@@ -86,6 +90,8 @@ function App(): React.JSX.Element {
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([])
   const [changelog, setChangelog] = useState('')
   const [showWhatsNew, setShowWhatsNew] = useState(false)
+  const [showProjectSettings, setShowProjectSettings] = useState(false)
+  const systemFonts = useFontStore((s) => s.systemFonts)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
 
   const refreshRecentProjects = (): void => {
@@ -124,6 +130,13 @@ function App(): React.JSX.Element {
     })
   }, [])
 
+  // Loaded once at startup so the global font picker (Project Settings modal) and every widget's own
+  // per-widget font dropdown share the same list without each triggering its own IPC round trip.
+  const loadSystemFonts = useFontStore((s) => s.loadSystemFonts)
+  useEffect(() => {
+    loadSystemFonts()
+  }, [loadSystemFonts])
+
   function dismissUpdateNotice(): void {
     if (updateInfo) localStorage.setItem(DISMISSED_UPDATE_VERSION_KEY, updateInfo.latestVersion)
     setUpdateInfo(null)
@@ -151,8 +164,8 @@ function App(): React.JSX.Element {
   // ONCE and actually fires every 60s of wall-clock time -- putting these fast-changing values in
   // this effect's own deps would tear down and restart the timer on every single edit, and a user
   // who never pauses editing for a full 60s would never get an autosave at all.
-  const latestAutosaveInputRef = useRef({ imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs })
-  latestAutosaveInputRef.current = { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs }
+  const latestAutosaveInputRef = useRef({ imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily })
+  latestAutosaveInputRef.current = { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily }
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60_000
     const interval = setInterval(() => {
@@ -235,6 +248,7 @@ function App(): React.JSX.Element {
       setStartFinish(project.startFinish)
       setCrossingAdjustmentsMs(project.crossingAdjustmentsMs)
       setTrim(project.trimStartMs, project.trimEndMs)
+      setDefaultFontFamily(project.defaultFontFamily)
       setStatus('idle')
       refreshRecentProjects()
     } catch (err) {
@@ -255,6 +269,7 @@ function App(): React.JSX.Element {
       setStartFinish(project.startFinish)
       setCrossingAdjustmentsMs(project.crossingAdjustmentsMs)
       setTrim(project.trimStartMs, project.trimEndMs)
+      setDefaultFontFamily(project.defaultFontFamily)
       setStatus('idle')
     } catch (err) {
       console.error('[project] recent-project load failed:', err)
@@ -279,6 +294,7 @@ function App(): React.JSX.Element {
       setStartFinish(project.startFinish)
       setCrossingAdjustmentsMs(project.crossingAdjustmentsMs)
       setTrim(project.trimStartMs, project.trimEndMs)
+      setDefaultFontFamily(project.defaultFontFamily)
       setAutosaveAvailable(false)
       setStatus('idle')
     } catch (err) {
@@ -297,7 +313,7 @@ function App(): React.JSX.Element {
     if (!imported) return
     setError(null)
     try {
-      const path = await window.api.saveProject({ imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs })
+      const path = await window.api.saveProject({ imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily })
       if (path) {
         setSavedPath(path)
         refreshRecentProjects()
@@ -314,7 +330,7 @@ function App(): React.JSX.Element {
     setExportState({ phase: 'exporting', done: 0, total: 1 })
     try {
       const path = await window.api.exportVideo(
-        { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs },
+        { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily },
         exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
       )
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
@@ -354,7 +370,8 @@ function App(): React.JSX.Element {
           startFinish,
           crossingAdjustmentsMs,
           trimStartMs: clipTrimStartMs,
-          trimEndMs: clipTrimEndMs
+          trimEndMs: clipTrimEndMs,
+          defaultFontFamily
         },
         exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
       )
@@ -450,6 +467,15 @@ function App(): React.JSX.Element {
                     }
                   >
                     🏁 Export Best Lap…
+                  </button>
+                  <button
+                    className="toolbar-menu__item"
+                    onClick={() => {
+                      setShowProjectSettings(true)
+                      closeMenu()
+                    }}
+                  >
+                    Project Settings…
                   </button>
                   <button
                     className="toolbar-menu__item"
@@ -558,6 +584,13 @@ function App(): React.JSX.Element {
         )}
         <Editor />
         <WhatsNewModal isOpen={showWhatsNew} changelog={changelog} onClose={() => setShowWhatsNew(false)} />
+        <ProjectSettingsModal
+          isOpen={showProjectSettings}
+          defaultFontFamily={defaultFontFamily}
+          systemFonts={systemFonts}
+          onChangeDefaultFontFamily={setDefaultFontFamily}
+          onClose={() => setShowProjectSettings(false)}
+        />
       </div>
     )
   }

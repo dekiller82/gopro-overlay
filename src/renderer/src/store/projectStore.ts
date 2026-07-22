@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { CrossingAdjustments, ImportResult, LatLon } from '@shared/types'
+import { FORMULA1_FONT_ID } from '@shared/render/fonts'
 
 interface ProjectState {
   imported: ImportResult | null
@@ -18,6 +19,9 @@ interface ProjectState {
   /** Whole-sequence trim, global ms spanning all clips. */
   trimStartMs: number
   trimEndMs: number
+  /** Project-wide default font -- FORMULA1_FONT_ID or a real OS-installed font family name. Any
+   *  widget's own fontFamily overrides this when set. */
+  defaultFontFamily: string
   setImported: (imported: ImportResult | null) => void
   /** Appending more clips to an in-progress edit -- unlike setImported, this does NOT reset the
    *  playhead/startFinish/trim (the user is extending their existing timeline, not starting a new
@@ -37,6 +41,7 @@ interface ProjectState {
   /** Clears a single crossing's correction back to zero. */
   resetCrossingAdjustment: (index: number) => void
   setTrim: (trimStartMs: number, trimEndMs: number) => void
+  setDefaultFontFamily: (defaultFontFamily: string) => void
 }
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -47,6 +52,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   crossingAdjustmentsMs: {},
   trimStartMs: 0,
   trimEndMs: 0,
+  defaultFontFamily: FORMULA1_FONT_ID,
   setImported: (imported) =>
     set({
       imported,
@@ -55,7 +61,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
       startFinish: null,
       crossingAdjustmentsMs: {},
       trimStartMs: 0,
-      trimEndMs: imported?.telemetry.videoDurationMs ?? 0
+      trimEndMs: imported?.telemetry.videoDurationMs ?? 0,
+      defaultFontFamily: FORMULA1_FONT_ID
     }),
   updateImportedClips: (imported) =>
     set((state) => ({
@@ -83,5 +90,6 @@ export const useProjectStore = create<ProjectState>((set) => ({
       delete next[key]
       return { crossingAdjustmentsMs: next }
     }),
-  setTrim: (trimStartMs, trimEndMs) => set({ trimStartMs, trimEndMs })
+  setTrim: (trimStartMs, trimEndMs) => set({ trimStartMs, trimEndMs }),
+  setDefaultFontFamily: (defaultFontFamily) => set({ defaultFontFamily })
 }))

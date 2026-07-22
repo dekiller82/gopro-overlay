@@ -1,5 +1,5 @@
 import { formatDistance, type SpeedUnit } from '../units'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface DistanceStyle {
@@ -33,10 +33,8 @@ export interface DrawDistanceOptions {
   /** Cumulative GPS arc-length from the very start of the recording, meters -- resolved by the
    *  caller via sampler.distanceAt. */
   distanceM: number
+  fontFamily?: string
 }
-
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const DISTANCE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 
 /**
  * A standalone live "distance covered so far" readout -- total session distance already exists
@@ -44,7 +42,8 @@ const DISTANCE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
  * distance counter on screen throughout the ride/session itself.
  */
 export function drawDistance(ctx: Canvas2DLike, options: DrawDistanceOptions): void {
-  const { rect, style, distanceM } = options
+  const { rect, style, distanceM, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -63,7 +62,7 @@ export function drawDistance(ctx: Canvas2DLike, options: DrawDistanceOptions): v
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', DISTANCE_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', fontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, rect.y + labelH * 0.72, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -75,7 +74,7 @@ export function drawDistance(ctx: Canvas2DLike, options: DrawDistanceOptions): v
   ctx.textBaseline = 'middle'
   // Sized against a fixed reference width, not the live text, so it doesn't jitter as the digit
   // count changes -- same reasoning as every other ticking value in this app.
-  fitFontSizePx(ctx, '000.00 km', rect.w * 0.85, valueAreaH * 0.6, '700', DISTANCE_FONT_STACK)
+  fitFontSizePx(ctx, '000.00 km', rect.w * 0.85, valueAreaH * 0.6, '700', fontStack)
   drawOutlinedText(ctx, valueText, cx, rect.y + labelH + valueAreaH / 2, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }

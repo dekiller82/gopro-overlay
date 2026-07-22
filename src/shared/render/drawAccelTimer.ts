@@ -1,6 +1,6 @@
 import type { AccelRunState } from '../telemetry/accelRuns'
 import { convertSpeed, type SpeedUnit } from '../units'
-import { FORMULA1_BOLD, FORMULA1_REGULAR } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface AccelTimerStyle {
@@ -50,11 +50,9 @@ export interface DrawAccelTimerOptions {
    *  as Apex Speed Callout's detection thresholds), resolved for the current cts by the caller via
    *  getAccelRunStateAt. */
   state: AccelRunState
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const HEADER_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
-const VALUE_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
 const TIME_SIZING_REFERENCE = '00.00s'
 
 function formatElapsed(ms: number): string {
@@ -76,7 +74,9 @@ function formatSplitTime(ms: number | null): string {
  * target speeds here are configurable since karts run a much lower, track-specific speed range.
  */
 export function drawAccelTimer(ctx: Canvas2DLike, options: DrawAccelTimerOptions): void {
-  const { rect, style, state } = options
+  const { rect, style, state, fontFamily } = options
+  const boldFontStack = resolveFontStack(fontFamily, 'bold')
+  const regularFontStack = resolveFontStack(fontFamily, 'regular')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -100,14 +100,14 @@ export function drawAccelTimer(ctx: Canvas2DLike, options: DrawAccelTimerOptions
     ctx.save()
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, style.label, rect.w * 0.42, headerH * 0.55, '700', HEADER_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.42, headerH * 0.55, '700', boldFontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), leftX, rect.y + headerH / 2, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
 
     ctx.save()
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * 0.36, headerH * 0.55, '700', VALUE_FONT_STACK)
+    fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * 0.36, headerH * 0.55, '700', regularFontStack)
     const elapsedText = state.elapsedMs !== null ? formatElapsed(Math.max(0, state.elapsedMs)) : '--'
     drawFixedWidthText(ctx, elapsedText, rect.x + rect.w * 0.75, rect.y + headerH / 2, style.color, outlineWidth, style.textOutlineColor)
     ctx.restore()
@@ -130,14 +130,14 @@ export function drawAccelTimer(ctx: Canvas2DLike, options: DrawAccelTimerOptions
     ctx.save()
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, formatTargetLabel(target.targetMps, style.unit), rect.w * 0.36, rowH * 0.45, '600', VALUE_FONT_STACK)
+    fitFontSizePx(ctx, formatTargetLabel(target.targetMps, style.unit), rect.w * 0.36, rowH * 0.45, '600', regularFontStack)
     drawOutlinedText(ctx, formatTargetLabel(target.targetMps, style.unit), leftX, rowCy, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
 
     ctx.save()
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * (style.showBest ? 0.28 : 0.46), rowH * 0.5, '700', VALUE_FONT_STACK)
+    fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * (style.showBest ? 0.28 : 0.46), rowH * 0.5, '700', regularFontStack)
     drawFixedWidthText(ctx, formatSplitTime(target.timeMs), currentX, rowCy, style.color, outlineWidth, style.textOutlineColor)
     ctx.restore()
 
@@ -145,7 +145,7 @@ export function drawAccelTimer(ctx: Canvas2DLike, options: DrawAccelTimerOptions
       ctx.save()
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
-      fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * 0.2, rowH * 0.32, '700', VALUE_FONT_STACK)
+      fitFontSizePx(ctx, TIME_SIZING_REFERENCE, rect.w * 0.2, rowH * 0.32, '700', regularFontStack)
       drawFixedWidthText(ctx, formatSplitTime(best.timeMs), bestX, rowCy, style.bestColor, outlineWidth, style.textOutlineColor)
       ctx.restore()
     }

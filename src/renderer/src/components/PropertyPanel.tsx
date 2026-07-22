@@ -19,12 +19,14 @@ import { DEFAULT_ELEVATION_STYLE } from '@shared/render/drawElevation'
 import { DEFAULT_DISTANCE_STYLE } from '@shared/render/drawDistance'
 import { DEFAULT_COMPASS_STYLE } from '@shared/render/drawCompass'
 import { DEFAULT_ACCEL_TIMER_STYLE } from '@shared/render/drawAccelTimer'
+import { FORMULA1_FONT_ID } from '@shared/render/fonts'
 import { applyThemeToWidget, LAYOUT_THEMES, type LayoutTheme } from '@shared/widgets/themes'
 import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
 import { useWidgetStore } from '../store/widgetStore'
 import { useProjectStore } from '../store/projectStore'
 import { useAlignmentStore } from '../store/alignmentStore'
+import { useFontStore } from '../store/fontStore'
 
 const MAX_TIMING_TOWER_ROWS = 20
 
@@ -177,8 +179,20 @@ function PropertyPanel(): React.JSX.Element {
   const setPaddingFraction = useAlignmentStore((s) => s.setPaddingFraction)
   const snapEnabled = useAlignmentStore((s) => s.snapEnabled)
   const setSnapEnabled = useAlignmentStore((s) => s.setSnapEnabled)
+  const systemFonts = useFontStore((s) => s.systemFonts)
 
   const selected = widgets.find((w) => w.id === selectedId) ?? null
+
+  // "Widgets" holds whole-project/global tools (start/finish, add/arrange, layouts, color themes);
+  // "Style" holds anything scoped to the current selection (alignment tools, the selected widget's
+  // own style fields) -- previously all of this was one long flat scroll, so reaching a selected
+  // widget's own controls meant scrolling past every global section first. Auto-switches to "Style"
+  // the instant the SELECTED WIDGET CHANGES (including from none to one), but a manual click back to
+  // "Widgets" (e.g. to add another widget) isn't overridden until the next actual selection change.
+  const [activeTab, setActiveTab] = useState<'widgets' | 'style'>('widgets')
+  useEffect(() => {
+    if (selectedId) setActiveTab('style')
+  }, [selectedId])
 
   // Live feedback for the GPS Track "ghost" marker -- it depends on two silent preconditions (a
   // start/finish line, and at least one lap actually completed by the current scrub position)
@@ -270,6 +284,23 @@ function PropertyPanel(): React.JSX.Element {
 
   return (
     <aside className="property-panel">
+      <div className="property-panel__tabs">
+        <button
+          className={`property-panel__tab${activeTab === 'widgets' ? ' property-panel__tab--active' : ''}`}
+          onClick={() => setActiveTab('widgets')}
+        >
+          Widgets
+        </button>
+        <button
+          className={`property-panel__tab${activeTab === 'style' ? ' property-panel__tab--active' : ''}`}
+          onClick={() => setActiveTab('style')}
+        >
+          Style
+        </button>
+      </div>
+
+      {activeTab === 'widgets' && (
+        <>
       <div className="property-panel__section">
         <div className="property-panel__header">
           <span>Start/finish line</span>
@@ -452,6 +483,16 @@ function PropertyPanel(): React.JSX.Element {
           ))}
         </div>
       </div>
+        </>
+      )}
+
+      {activeTab === 'style' && (
+        <>
+      {!selected && (
+        <div className="property-panel__section">
+          <span className="field__hint">Select a widget (on the canvas, or from the Widgets tab's list) to edit its style.</span>
+        </div>
+      )}
 
       {selected && (
         <div className="property-panel__section">
@@ -527,6 +568,36 @@ function PropertyPanel(): React.JSX.Element {
           <span className="field__hint">
             A locked widget can't be dragged or resized on the canvas (and is skipped by group drag/nudge) --
             still editable here in the property panel.
+          </span>
+        </div>
+      )}
+
+      {selected && (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Font</span>
+          </div>
+          <label className="field">
+            <span>Font family{selectedIds.length > 1 ? ' (all selected)' : ''}</span>
+            <select
+              value={selected.fontFamily ?? ''}
+              onChange={(e) => {
+                const value = e.target.value || null
+                for (const w of targetWidgets) updateWidget(w.id, { fontFamily: value })
+              }}
+            >
+              <option value="">Inherit from global</option>
+              <option value={FORMULA1_FONT_ID}>Formula1 (bundled)</option>
+              {systemFonts.map((font) => (
+                <option key={font} value={font}>
+                  {font}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="field__hint">
+            Overrides the project-wide default font (Project Settings, in the File menu) for just this widget
+            {selectedIds.length > 1 ? ' selection' : ''}.
           </span>
         </div>
       )}
@@ -3341,6 +3412,8 @@ function PropertyPanel(): React.JSX.Element {
         </div>
         )
       })()}
+        </>
+      )}
     </aside>
   )
 }

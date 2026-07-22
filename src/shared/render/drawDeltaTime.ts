@@ -1,5 +1,5 @@
 import type { DeltaState } from '../telemetry/deltaTime'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface DeltaTimeStyle {
@@ -38,10 +38,9 @@ export interface DrawDeltaTimeOptions {
   rect: Rect
   style: DeltaTimeStyle
   deltaState: DeltaState | null
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const DELTA_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 /** Longest realistic delta string, sized against ONCE (not the live text) so the value doesn't
  *  jitter in size as its digits change frame to frame -- same discipline as Sector Timer/Timer. */
 const VALUE_SIZING_REFERENCE = '-00.00'
@@ -58,7 +57,8 @@ function formatDelta(ms: number): string {
 /** iRacing-style live delta to the best completed lap so far: green/negative when ahead of that
  *  lap's own pace at the same distance-into-the-lap, red/positive when behind. */
 export function drawDeltaTime(ctx: Canvas2DLike, options: DrawDeltaTimeOptions): void {
-  const { rect, style, deltaState } = options
+  const { rect, style, deltaState, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -77,7 +77,7 @@ export function drawDeltaTime(ctx: Canvas2DLike, options: DrawDeltaTimeOptions):
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.8, '700', DELTA_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.8, '700', fontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, rect.y + labelH * 0.75, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -89,7 +89,7 @@ export function drawDeltaTime(ctx: Canvas2DLike, options: DrawDeltaTimeOptions):
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  fitFontSizePx(ctx, VALUE_SIZING_REFERENCE, rect.w * 0.92, (rect.h - labelH) * 0.7, '700', DELTA_FONT_STACK)
+  fitFontSizePx(ctx, VALUE_SIZING_REFERENCE, rect.w * 0.92, (rect.h - labelH) * 0.7, '700', fontStack)
   drawFixedWidthText(ctx, text, cx, rect.y + labelH + (rect.h - labelH) / 2, color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }

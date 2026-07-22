@@ -35,6 +35,7 @@ interface Props {
   sessionEndMs: number
   lapSpeedTraces: LapSpeedTrace[]
   currentLapSpeedTrace: LapSpeedTrace | null
+  defaultFontFamily: string
   /** Reports which guide lines (if any) should be drawn while this widget is being dragged -- lifted
    *  up to WidgetLayer since guide lines span the whole frame, not just this one widget's box. */
   onGuidesChange: (guides: ActiveGuides | null) => void
@@ -60,6 +61,7 @@ function WidgetBox({
   sessionEndMs,
   lapSpeedTraces,
   currentLapSpeedTrace,
+  defaultFontFamily,
   onGuidesChange,
   groupDrag,
   onGroupDragChange
@@ -208,6 +210,7 @@ function WidgetBox({
           sessionEndMs={sessionEndMs}
           lapSpeedTraces={lapSpeedTraces}
           currentLapSpeedTrace={currentLapSpeedTrace}
+          defaultFontFamily={defaultFontFamily}
         />
       </div>
     </Rnd>

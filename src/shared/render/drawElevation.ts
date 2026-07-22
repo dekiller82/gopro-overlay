@@ -1,6 +1,6 @@
 import type { ElevationProfilePoint } from '../telemetry/sampleAt'
 import { type SpeedUnit } from '../units'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface ElevationStyle {
@@ -55,10 +55,9 @@ export interface DrawElevationOptions {
   profile: ElevationProfilePoint[]
   /** Current cts -- used only to find where "now" falls along the static profile for the graph's marker. */
   cts: number
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const ELEVATION_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 const GRID_LINE_COUNT = 3
 
 function formatElevation(meters: number, unit: SpeedUnit): string {
@@ -77,7 +76,15 @@ function profilePointAt(profile: ElevationProfilePoint[], cts: number): Elevatio
   return profile[idx]
 }
 
-function drawReadout(ctx: Canvas2DLike, rect: Rect, style: ElevationStyle, currentAltitudeM: number, areaY: number, areaH: number): void {
+function drawReadout(
+  ctx: Canvas2DLike,
+  rect: Rect,
+  style: ElevationStyle,
+  currentAltitudeM: number,
+  areaY: number,
+  areaH: number,
+  fontStack: string
+): void {
   const cx = rect.x + rect.w / 2
   const outlineWidth = scaleToRect(style.textOutlineWidth, rect)
   const hasLabel = Boolean(style.label)
@@ -87,7 +94,7 @@ function drawReadout(ctx: Canvas2DLike, rect: Rect, style: ElevationStyle, curre
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', ELEVATION_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', fontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, areaY + labelH * 0.72, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -98,7 +105,7 @@ function drawReadout(ctx: Canvas2DLike, rect: Rect, style: ElevationStyle, curre
   ctx.textBaseline = 'middle'
   // Sized against a fixed reference (a realistic worst-case width), not the live text, so the size
   // doesn't jitter as the digit count/sign changes -- same reasoning as every other ticking value.
-  fitFontSizePx(ctx, '-0000 ft', rect.w * 0.85, (areaH - labelH) * 0.7, '700', ELEVATION_FONT_STACK)
+  fitFontSizePx(ctx, '-0000 ft', rect.w * 0.85, (areaH - labelH) * 0.7, '700', fontStack)
   drawOutlinedText(ctx, valueText, cx, areaY + labelH + (areaH - labelH) / 2, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }
@@ -198,7 +205,8 @@ function drawGraph(ctx: Canvas2DLike, rect: Rect, style: ElevationStyle, profile
  * changes; on a flat closed karting circuit it'll understandably look close to a flat line.
  */
 export function drawElevation(ctx: Canvas2DLike, options: DrawElevationOptions): void {
-  const { rect, style, currentAltitudeM, profile, cts } = options
+  const { rect, style, currentAltitudeM, profile, cts, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -209,7 +217,7 @@ export function drawElevation(ctx: Canvas2DLike, options: DrawElevationOptions):
   }
 
   if (style.mode === 'readout') {
-    drawReadout(ctx, rect, style, currentAltitudeM, rect.y, rect.h)
+    drawReadout(ctx, rect, style, currentAltitudeM, rect.y, rect.h, fontStack)
     return
   }
   if (style.mode === 'graph') {
@@ -218,6 +226,6 @@ export function drawElevation(ctx: Canvas2DLike, options: DrawElevationOptions):
   }
 
   const readoutH = rect.h * 0.34
-  drawReadout(ctx, rect, style, currentAltitudeM, rect.y, readoutH)
+  drawReadout(ctx, rect, style, currentAltitudeM, rect.y, readoutH, fontStack)
   drawGraph(ctx, rect, style, profile, cts, rect.y + readoutH, rect.h - readoutH)
 }

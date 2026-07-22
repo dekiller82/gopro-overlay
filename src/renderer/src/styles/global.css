@@ -707,6 +707,37 @@ body {
   gap: 10px;
 }
 
+.property-panel__tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.property-panel__tab {
+  flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.property-panel__tab:hover {
+  color: var(--text);
+}
+
+.property-panel__tab--active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+}
+
 .property-panel__header {
   display: flex;
   align-items: center;

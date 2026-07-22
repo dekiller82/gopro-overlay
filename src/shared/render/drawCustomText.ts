@@ -1,4 +1,4 @@
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type CanvasImageLike, type Rect } from './canvas2d'
 
 export interface CustomTextStyle {
@@ -38,10 +38,9 @@ export interface DrawCustomTextOptions {
   style: CustomTextStyle
   /** Loaded ahead of time by the caller (image decode is async; drawing is not) -- null/undefined draws no image. */
   image?: CanvasImageLike | null
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const TEXT_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 const SAFE_WIDTH_FRACTION = 0.92
 
 /**
@@ -51,7 +50,8 @@ const SAFE_WIDTH_FRACTION = 0.92
  * present (matching the Timer widget's header layout convention), either alone gets the whole box.
  */
 export function drawCustomText(ctx: Canvas2DLike, options: DrawCustomTextOptions): void {
-  const { rect, style, image } = options
+  const { rect, style, image, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -100,7 +100,7 @@ export function drawCustomText(ctx: Canvas2DLike, options: DrawCustomTextOptions
   // Sized once against the widest line so every line shares one consistent font size -- fitting
   // each line individually would make short and long lines in the same block look mismatched.
   const widestLine = lines.reduce((a, b) => (b.length > a.length ? b : a), '')
-  const fontSize = fitFontSizePx(ctx, widestLine, maxWidth, maxLineHeight, '700', TEXT_FONT_STACK)
+  const fontSize = fitFontSizePx(ctx, widestLine, maxWidth, maxLineHeight, '700', fontStack)
   const lineHeight = fontSize * 1.25
   const blockHeight = lineHeight * lines.length
   const firstLineY = textAreaY + textAreaH / 2 - blockHeight / 2 + lineHeight / 2

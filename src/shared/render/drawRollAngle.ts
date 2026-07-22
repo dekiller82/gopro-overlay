@@ -1,5 +1,5 @@
 import type { RollAngleReading } from '../telemetry/sampleAt'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface RollAngleStyle {
@@ -54,17 +54,16 @@ export interface DrawRollAngleOptions {
   style: RollAngleStyle
   reading: RollAngleReading
   hasImuData: boolean
+  fontFamily?: string
 }
-
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const ROLL_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 
 /**
  * Numeric roll/lean angle readout ("12° LEFT" style) plus a horizon-bar graphic that visually tilts
  * with the current angle -- an at-a-glance body-roll (car) / lean-angle (motorcycle) indicator.
  */
 export function drawRollAngle(ctx: Canvas2DLike, options: DrawRollAngleOptions): void {
-  const { rect, style, reading, hasImuData } = options
+  const { rect, style, reading, hasImuData, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -83,7 +82,7 @@ export function drawRollAngle(ctx: Canvas2DLike, options: DrawRollAngleOptions):
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', ROLL_FONT_STACK)
+    fitFontSizePx(ctx, style.label, rect.w * 0.9, labelH * 0.75, '700', fontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, rect.y + labelH * 0.72, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -93,7 +92,7 @@ export function drawRollAngle(ctx: Canvas2DLike, options: DrawRollAngleOptions):
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const text = 'No accelerometer data'
-    fitFontSizePx(ctx, text, rect.w * 0.85, rect.h * 0.1, '600', ROLL_FONT_STACK)
+    fitFontSizePx(ctx, text, rect.w * 0.85, rect.h * 0.1, '600', fontStack)
     drawOutlinedText(ctx, text, cx, rect.y + labelH + (rect.h - labelH) / 2, style.color, outlineWidth, style.textOutlineColor)
     ctx.restore()
     return
@@ -133,7 +132,7 @@ export function drawRollAngle(ctx: Canvas2DLike, options: DrawRollAngleOptions):
   // ticking value in this app. A single drawOutlinedText call (not per-character) -- this angle
   // reading isn't a fast-ticking many-digit value like a lap clock, so proportional-width jitter
   // isn't the concern fixed-width digits exist for elsewhere.
-  fitFontSizePx(ctx, '00° RIGHT', rect.w * 0.92, (rect.h - labelH - barAreaH) * 0.55, '700', ROLL_FONT_STACK)
+  fitFontSizePx(ctx, '00° RIGHT', rect.w * 0.92, (rect.h - labelH - barAreaH) * 0.55, '700', fontStack)
   drawOutlinedText(ctx, valueText, cx, valueAreaY, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 
@@ -143,7 +142,7 @@ export function drawRollAngle(ctx: Canvas2DLike, options: DrawRollAngleOptions):
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
     const noteSize = Math.max(7, Math.round(rect.h * 0.04))
-    ctx.font = `500 ${noteSize}px ${ROLL_FONT_STACK}`
+    ctx.font = `500 ${noteSize}px ${fontStack}`
     ctx.fillStyle = style.color
     ctx.fillText('estimated (no gravity sensor)', cx, rect.y + rect.h - noteSize * 0.5)
     ctx.restore()

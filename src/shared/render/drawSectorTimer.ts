@@ -1,6 +1,6 @@
 import { formatTime } from '../format'
 import type { SectorState } from '../telemetry/sectors'
-import { FORMULA1_BOLD } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawFixedWidthText, drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface SectorTimerStyle {
@@ -33,10 +33,9 @@ export interface DrawSectorTimerOptions {
   rect: Rect
   style: SectorTimerStyle
   sectorState: SectorState | null
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const SECTOR_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 /** Conventional "fastest" color (matches the timing tower's fastest-lap purple), used for a sector time that's this session's best for that sector. */
 const SECTOR_PURPLE = '#b026ff'
 
@@ -57,7 +56,8 @@ function drawSectorRow(
   liveSector: 1 | 2 | 3 | null,
   bestFlags: boolean[],
   labelFontFraction: number,
-  valueFontFraction: number
+  valueFontFraction: number,
+  fontStack: string
 ): void {
   const colW = rect.w / 3
 
@@ -69,7 +69,7 @@ function drawSectorRow(
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, SECTOR_LABELS[i], colW * 0.8, rowH * labelFontFraction, '700', SECTOR_FONT_STACK)
+    fitFontSizePx(ctx, SECTOR_LABELS[i], colW * 0.8, rowH * labelFontFraction, '700', fontStack)
     drawOutlinedText(ctx, SECTOR_LABELS[i], cx, rowY + rowH * 0.32, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
 
@@ -83,7 +83,7 @@ function drawSectorRow(
     // Sized once against a fixed reference string (not the live text) so the value never jitters
     // in size as its digits change; drawn with fixed-width digit slots so it doesn't jitter
     // horizontally either (a centered proportional-width string shifts as digit widths vary).
-    fitFontSizePx(ctx, VALUE_SIZING_REFERENCE, colW * 0.88, rowH * valueFontFraction, '700', SECTOR_FONT_STACK)
+    fitFontSizePx(ctx, VALUE_SIZING_REFERENCE, colW * 0.88, rowH * valueFontFraction, '700', fontStack)
     drawFixedWidthText(ctx, text, cx, rowY + rowH * 0.82, color, outlineWidth, style.textOutlineColor)
     ctx.restore()
   }
@@ -99,7 +99,8 @@ function drawSectorRow(
  * last *fully completed* lap's own S1/S2/S3 for comparison.
  */
 export function drawSectorTimer(ctx: Canvas2DLike, options: DrawSectorTimerOptions): void {
-  const { rect, style, sectorState } = options
+  const { rect, style, sectorState, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'bold')
 
   if (style.backgroundOpacity > 0) {
     ctx.save()
@@ -122,12 +123,12 @@ export function drawSectorTimer(ctx: Canvas2DLike, options: DrawSectorTimerOptio
   ]
   const currentBestFlags = [sectorState.isCurrentLapS1Best, sectorState.isCurrentLapS2Best, false]
 
-  drawSectorRow(ctx, mainRect, mainRect.y, mainRect.h, style, outlineWidth, currentValues, sectorState.currentSector, currentBestFlags, 0.24, 0.4)
+  drawSectorRow(ctx, mainRect, mainRect.y, mainRect.h, style, outlineWidth, currentValues, sectorState.currentSector, currentBestFlags, 0.24, 0.4, fontStack)
 
   if (showLastLapRow && sectorState.lastLap) {
     const lastLapRect: Rect = { ...rect, y: rect.y + mainRect.h, h: rect.h - mainRect.h }
     const lastValues = [sectorState.lastLap.s1Ms, sectorState.lastLap.s2Ms, sectorState.lastLap.s3Ms]
     const lastBestFlags = [sectorState.isLastS1Best, sectorState.isLastS2Best, sectorState.isLastS3Best]
-    drawSectorRow(ctx, lastLapRect, lastLapRect.y, lastLapRect.h, style, outlineWidth, lastValues, null, lastBestFlags, 0.26, 0.4)
+    drawSectorRow(ctx, lastLapRect, lastLapRect.y, lastLapRect.h, style, outlineWidth, lastValues, null, lastBestFlags, 0.26, 0.4, fontStack)
   }
 }

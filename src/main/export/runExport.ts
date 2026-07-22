@@ -35,6 +35,9 @@ export interface RunExportOptions {
   /** Whole-sequence trim, global ms spanning all clips. */
   trimStartMs: number
   trimEndMs: number
+  /** Project-wide default font (FORMULA1_FONT_ID or a real system font family) -- any widget's own
+   *  fontFamily overrides this. */
+  defaultFontFamily: string
   settings: ExportSettings
   onProgress?: (framesWritten: number, totalFrames: number) => void
   onEncoderSelected?: (label: string) => void
@@ -289,7 +292,8 @@ function runWithEncoder(
 }
 
 export async function runExport(options: RunExportOptions): Promise<void> {
-  const { clips, outputPath, widgets, sampler, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, settings, onProgress, onEncoderSelected } = options
+  const { clips, outputPath, widgets, sampler, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily, settings, onProgress, onEncoderSelected } =
+    options
 
   const ffmpegPath = resolveUnpackedBinaryPath(ffmpegPathRaw)
   if (!ffmpegPath) throw new Error('Bundled ffmpeg binary not found for this platform')
@@ -298,7 +302,17 @@ export async function runExport(options: RunExportOptions): Promise<void> {
   const resolvedFfmpegPath: string = ffmpegPath
 
   const totalFrames = Math.max(1, Math.round(((trimEndMs - trimStartMs) / 1000) * settings.fps))
-  const renderFrame = await createFrameRenderer(settings.width, settings.height, widgets, sampler, startFinish, crossingAdjustmentsMs, trimEndMs, trimStartMs)
+  const renderFrame = await createFrameRenderer(
+    settings.width,
+    settings.height,
+    widgets,
+    sampler,
+    startFinish,
+    crossingAdjustmentsMs,
+    trimEndMs,
+    trimStartMs,
+    defaultFontFamily
+  )
 
   const encoder = await selectVideoEncoder(resolvedFfmpegPath, settings.preferGpu ?? true)
   console.log(`[export] using video encoder: ${encoder.label} (${encoder.codec})`)

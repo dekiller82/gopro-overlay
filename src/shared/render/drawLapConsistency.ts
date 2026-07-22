@@ -1,6 +1,6 @@
 import type { LapState } from '../telemetry/laps'
 import { formatTime } from '../format'
-import { FORMULA1_BOLD, FORMULA1_REGULAR } from './fonts'
+import { resolveFontStack } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
 export interface LapConsistencyStyle {
@@ -38,11 +38,8 @@ export interface DrawLapConsistencyOptions {
   /** Same LapState every lap/sector-derived widget already receives -- "as of" the queried cts, so
    *  scrubbing early in the video never shows laps that haven't happened yet from that point. */
   lapState: LapState | null
+  fontFamily?: string
 }
-
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const TITLE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
-const VALUE_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
 
 /**
  * A glance-able bar chart of the most recent completed laps -- taller bar = a relatively faster lap
@@ -52,7 +49,9 @@ const VALUE_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
  * consistency at a glance, not the shape of any single lap.
  */
 export function drawLapConsistency(ctx: Canvas2DLike, options: DrawLapConsistencyOptions): void {
-  const { rect, style, lapState } = options
+  const { rect, style, lapState, fontFamily } = options
+  const titleFontStack = resolveFontStack(fontFamily, 'bold')
+  const valueFontStack = resolveFontStack(fontFamily, 'regular')
   const outlineWidth = scaleToRect(style.textOutlineWidth, rect)
 
   if (style.backgroundOpacity > 0) {
@@ -68,7 +67,7 @@ export function drawLapConsistency(ctx: Canvas2DLike, options: DrawLapConsistenc
   if (style.title) {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    fitFontSizePx(ctx, style.title, rect.w * 0.9, rect.h * 0.1, '700', TITLE_FONT_STACK)
+    fitFontSizePx(ctx, style.title, rect.w * 0.9, rect.h * 0.1, '700', titleFontStack)
     drawOutlinedText(ctx, style.title, cx, titleY, style.labelColor, outlineWidth, style.textOutlineColor)
   }
 
@@ -79,7 +78,7 @@ export function drawLapConsistency(ctx: Canvas2DLike, options: DrawLapConsistenc
   if (shownLaps.length === 0) {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    fitFontSizePx(ctx, 'NO COMPLETED LAPS YET', rect.w * 0.85, rect.h * 0.06, '600', VALUE_FONT_STACK)
+    fitFontSizePx(ctx, 'NO COMPLETED LAPS YET', rect.w * 0.85, rect.h * 0.06, '600', valueFontStack)
     drawOutlinedText(ctx, 'NO COMPLETED LAPS YET', cx, rect.y + rect.h * 0.55, style.labelColor, outlineWidth, style.textOutlineColor)
     return
   }
@@ -98,8 +97,8 @@ export function drawLapConsistency(ctx: Canvas2DLike, options: DrawLapConsistenc
   const totalGap = gap * (shownLaps.length + 1)
   const barWidth = (rect.w - totalGap) / shownLaps.length
 
-  const valueFontPx = fitFontSizePx(ctx, '00:00.00', barWidth * 1.4, chartHeight * 0.16, '600', VALUE_FONT_STACK)
-  const labelFontPx = fitFontSizePx(ctx, '00', barWidth * 1.2, rect.h * 0.05, '600', VALUE_FONT_STACK)
+  const valueFontPx = fitFontSizePx(ctx, '00:00.00', barWidth * 1.4, chartHeight * 0.16, '600', valueFontStack)
+  const labelFontPx = fitFontSizePx(ctx, '00', barWidth * 1.2, rect.h * 0.05, '600', valueFontStack)
 
   shownLaps.forEach((lap, i) => {
     // Inverted: the fastest lap gets the TALLEST bar -- reads as "how good", not "how slow".
@@ -117,7 +116,7 @@ export function drawLapConsistency(ctx: Canvas2DLike, options: DrawLapConsistenc
       ctx.save()
       ctx.textAlign = 'center'
       ctx.textBaseline = 'alphabetic'
-      ctx.font = `600 ${valueFontPx}px ${VALUE_FONT_STACK}`
+      ctx.font = `600 ${valueFontPx}px ${valueFontStack}`
       drawOutlinedText(
         ctx,
         formatTime(lap.timeMs, true),
@@ -133,7 +132,7 @@ export function drawLapConsistency(ctx: Canvas2DLike, options: DrawLapConsistenc
     ctx.save()
     ctx.textAlign = 'center'
     ctx.textBaseline = 'alphabetic'
-    ctx.font = `600 ${labelFontPx}px ${VALUE_FONT_STACK}`
+    ctx.font = `600 ${labelFontPx}px ${valueFontStack}`
     drawOutlinedText(ctx, String(lap.lapNumber), barX + barWidth / 2, labelY, style.labelColor, outlineWidth, style.textOutlineColor)
     ctx.restore()
   })

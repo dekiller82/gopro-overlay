@@ -20,7 +20,8 @@ export async function saveProjectToFile(projectPath: string, payload: ProjectPay
     startFinish: payload.startFinish,
     crossingAdjustmentsMs: payload.crossingAdjustmentsMs,
     trimStartMs: payload.trimStartMs,
-    trimEndMs: payload.trimEndMs
+    trimEndMs: payload.trimEndMs,
+    defaultFontFamily: payload.defaultFontFamily
   }
 
   await writeFile(projectPath, JSON.stringify(project, null, 2))
@@ -45,6 +46,7 @@ export async function loadProjectFromFile(projectPath: string): Promise<ProjectP
     startFinish: project.startFinish,
     crossingAdjustmentsMs: project.crossingAdjustmentsMs,
     trimStartMs: project.trimStartMs,
-    trimEndMs: project.trimEndMs
+    trimEndMs: project.trimEndMs,
+    defaultFontFamily: project.defaultFontFamily
   }
 }

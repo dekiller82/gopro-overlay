@@ -7,6 +7,7 @@ import { autosaveProjectPath, hasAutosave, clearAutosave } from '../project/auto
 import { listRecentProjects, addRecentProject, removeRecentProject, defaultRecentProjectsFilePath } from '../project/recentProjects'
 import { defaultChangelogPath, readChangelog } from '../app/changelog'
 import { checkForUpdate } from '../app/updateCheck'
+import { listSystemFonts } from '../app/systemFonts'
 import { runExport } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
 import { findDeliveryPreset, resolvePresetDimensions } from '../../shared/export/deliveryPresets'
@@ -121,6 +122,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('app:getVersion', (): string => app.getVersion())
   ipcMain.handle('app:getChangelog', async (): Promise<string> => readChangelog(defaultChangelogPath()))
   ipcMain.handle('app:checkForUpdate', async (): Promise<UpdateCheckResult | null> => checkForUpdate(app.getVersion()))
+  ipcMain.handle('fonts:listSystem', async (): Promise<string[]> => listSystemFonts())
 
   ipcMain.handle('export:start', async (event, payload: ProjectPayload, deliveryPresetId?: string): Promise<string | null> => {
     const win = BrowserWindow.getFocusedWindow()
@@ -150,6 +152,7 @@ export function registerIpcHandlers(): void {
       crossingAdjustmentsMs: payload.crossingAdjustmentsMs,
       trimStartMs: payload.trimStartMs,
       trimEndMs: payload.trimEndMs,
+      defaultFontFamily: payload.defaultFontFamily,
       settings: {
         width,
         height,

@@ -4,6 +4,7 @@ import { join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadProjectFromFile, saveProjectToFile } from './persistence'
 import { createWidget } from '../../shared/widgets/defaults'
+import { FORMULA1_FONT_ID } from '../../shared/render/fonts'
 import type { ClipInfo, ImportResult, ProjectPayload, VideoMeta } from '../../shared/types'
 
 function makeVideoMeta(path: string, overrides: Partial<VideoMeta> = {}): VideoMeta {
@@ -54,7 +55,8 @@ function makePayload(dir: string, clipCount = 1, crossingAdjustmentsMs: ProjectP
     startFinish: { lat: 51.5, lon: -0.1 },
     crossingAdjustmentsMs,
     trimStartMs: 0,
-    trimEndMs: offsetMs
+    trimEndMs: offsetMs,
+    defaultFontFamily: FORMULA1_FONT_ID
   }
 }
 
@@ -81,6 +83,7 @@ describe('project persistence', () => {
     expect(loaded.crossingAdjustmentsMs).toEqual(payload.crossingAdjustmentsMs)
     expect(loaded.trimStartMs).toBe(payload.trimStartMs)
     expect(loaded.trimEndMs).toBe(payload.trimEndMs)
+    expect(loaded.defaultFontFamily).toBe(payload.defaultFontFamily)
   })
 
   it('round-trips manual per-crossing adjustments', async () => {
@@ -262,5 +265,11 @@ describe('project persistence', () => {
     expect(loaded.imported.telemetry.accel).toEqual([])
     expect(loaded.imported.telemetry.gyro).toEqual([])
     expect(loaded.imported.telemetry.gravity).toEqual([])
+
+    // This fixture's widget and project object also predate fontFamily/defaultFontFamily entirely
+    // (written before the font picker feature existed) -- confirms both new fields fall back to
+    // "inherit"/the bundled default rather than failing to parse.
+    expect(gpsWidget.fontFamily).toBeNull()
+    expect(loaded.defaultFontFamily).toBe(FORMULA1_FONT_ID)
   })
 })

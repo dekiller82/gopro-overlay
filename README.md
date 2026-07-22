@@ -26,6 +26,9 @@ speedometer widgets running together over real footage.
 - **18 widgets** (17 telemetry-driven, plus a freeform text/logo widget), each fully configurable
   (colors, fonts, size, smoothing) via the property panel — see [Widgets](#widgets) below for what
   each one shows and its own options.
+- **Font picker** — a project-wide default font (Project Settings, in the File menu), picked from
+  your real OS-installed fonts alongside the built-in Formula1 look, with a per-widget override
+  available in each widget's own Style panel.
 - **Lap & sector detection** from a start/finish line you place on the GPS track — everything
   (timer, sector timer, delta time, predictive lap timer, speed graph, session summary, lap
   consistency) derives from it automatically.

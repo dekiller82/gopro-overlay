@@ -2,6 +2,20 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.13] - 2026-07-22
+
+### Added
+- **Global + per-widget font picker** — a "Project Settings" panel (File menu) sets a project-wide
+  default font, picked from your real OS-installed fonts (not just a curated bundled list) alongside
+  the existing Formula1 look. Any widget can override this with its own font via a "Font family"
+  dropdown in its Style panel, defaulting to "Inherit from global". Renders identically in live
+  preview and export — the export pipeline registers the same system fonts `@napi-rs/canvas` uses.
+- **Property panel reorganized into two tabs**: "Widgets" (start/finish line, add/arrange widgets,
+  layouts, color themes) and "Style" (alignment tools plus the selected widget's own controls).
+  Selecting any widget now jumps straight to its Style tab instead of requiring a scroll past every
+  global section first — the panel had grown long enough (18 widget types) that this was becoming a
+  real navigation cost.
+
 ## [0.1.12] - 2026-07-22
 
 ### Added

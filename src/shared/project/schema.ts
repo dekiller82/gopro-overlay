@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FORMULA1_FONT_ID } from '../render/fonts'
 
 const transformFields = {
   x: z.number(),
@@ -9,7 +10,10 @@ const transformFields = {
   zIndex: z.number(),
   /** When true, blocks drag/resize (and multi-select group-move) for this widget -- for pinning
    *  placement once it's dialed in without it accidentally moving while working on neighbors. */
-  locked: z.boolean().default(false)
+  locked: z.boolean().default(false),
+  /** null = inherit the project's defaultFontFamily -- default kept null (not the sentinel) so an
+   *  old saved project's widgets don't suddenly all look "explicitly Formula1" instead of "inherit". */
+  fontFamily: z.string().nullable().default(null)
 }
 
 const gpsStyleSchema = z.object({
@@ -516,7 +520,10 @@ export const projectFileSchema = z.object({
   crossingAdjustmentsMs: crossingAdjustmentsSchema,
   /** Whole-sequence trim, global ms spanning all clips. */
   trimStartMs: z.number(),
-  trimEndMs: z.number()
+  trimEndMs: z.number(),
+  /** Project-wide default font -- FORMULA1_FONT_ID or a real OS-installed font family name. Default
+   *  keeps already-saved projects looking exactly as they did before this field existed. */
+  defaultFontFamily: z.string().default(FORMULA1_FONT_ID)
 })
 
 export type ProjectFile = z.infer<typeof projectFileSchema>
@@ -567,7 +574,8 @@ export function parseProjectFile(raw: unknown): ProjectFile {
       clips: [{ video: { ...sourceVideo, hasAudio: true, lrvPath: null }, startOffsetMs: 0 }],
       crossingAdjustmentsMs: {},
       trimStartMs: 0,
-      trimEndMs: sourceVideo.durationMs
+      trimEndMs: sourceVideo.durationMs,
+      defaultFontFamily: FORMULA1_FONT_ID
     }
   }
 

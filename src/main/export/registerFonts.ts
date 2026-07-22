@@ -2,6 +2,7 @@ import { app } from 'electron'
 import path from 'path'
 import { GlobalFonts } from '@napi-rs/canvas'
 import { FORMULA1_BOLD, FORMULA1_REGULAR } from '../../shared/render/fonts'
+import { loadSystemFontsIntoGlobalFonts } from '../app/systemFonts'
 
 // These .otf files live under the renderer's source tree (not bundled by the main-process build,
 // since nothing there imports them). @napi-rs/canvas is a native addon and can't read files packed
@@ -20,4 +21,7 @@ export function registerExportFonts(): void {
   if (!GlobalFonts.has(FORMULA1_BOLD)) {
     GlobalFonts.registerFromPath(path.join(FONTS_DIR, 'Formula1-Bold.otf'), FORMULA1_BOLD)
   }
+  // Makes real OS-installed fonts (a global/per-widget font choice) available to @napi-rs/canvas
+  // during export, not just the bundled Formula1 pair -- also idempotent.
+  loadSystemFontsIntoGlobalFonts()
 }

@@ -24,6 +24,7 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
   const crossingAdjustmentsMs = useProjectStore((s) => s.crossingAdjustmentsMs)
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
+  const defaultFontFamily = useProjectStore((s) => s.defaultFontFamily)
   // Only one widget can be dragged at a time, so a single shared slot (rather than per-widget state)
   // is enough -- whichever WidgetBox is actively being dragged reports into it. Guide lines span the
   // whole frame, so they're rendered here rather than inside the dragging widget's own box.
@@ -134,6 +135,7 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
           sessionEndMs={trimEndMs}
           lapSpeedTraces={lapSpeedTraces}
           currentLapSpeedTrace={currentLapSpeedTrace}
+          defaultFontFamily={defaultFontFamily}
           onGuidesChange={setActiveGuides}
           groupDrag={groupDrag}
           onGroupDragChange={setGroupDrag}

@@ -31,6 +31,7 @@ interface Props {
   sessionEndMs: number
   lapSpeedTraces: LapSpeedTrace[]
   currentLapSpeedTrace: LapSpeedTrace | null
+  defaultFontFamily: string
 }
 
 function WidgetCanvas({
@@ -46,7 +47,8 @@ function WidgetCanvas({
   sessionSummaryData,
   sessionEndMs,
   lapSpeedTraces,
-  currentLapSpeedTrace
+  currentLapSpeedTrace,
+  defaultFontFamily
 }: Props): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -209,7 +211,8 @@ function WidgetCanvas({
       elevationProfile: sampler.elevationProfile,
       distanceReading,
       headingReading,
-      accelRunState
+      accelRunState,
+      projectFontFamily: defaultFontFamily
     })
   }, [
     widget,
@@ -230,7 +233,8 @@ function WidgetCanvas({
     coloredTrackImage,
     lapSpeedTraces,
     currentLapSpeedTrace,
-    accelRuns
+    accelRuns,
+    defaultFontFamily
   ])
 
   return (

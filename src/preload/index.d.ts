@@ -28,6 +28,7 @@ interface Api {
   getAppVersion: () => Promise<string>
   getChangelog: () => Promise<string>
   checkForUpdate: () => Promise<UpdateCheckResult | null>
+  listSystemFonts: () => Promise<string[]>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
   onImportProgress: (callback: (progress: ImportProgress) => void) => () => void
   onPreviewProxyProgress: (callback: (progress: { fraction: number }) => void) => () => void

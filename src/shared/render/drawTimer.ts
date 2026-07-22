@@ -1,6 +1,6 @@
 import { formatTime } from '../format'
 import type { LapHistoryEntry, LapState } from '../telemetry/laps'
-import { FORMULA1_REGULAR } from './fonts'
+import { resolveFontStack } from './fonts'
 import { DEFAULT_HEADER_LOGO_DATA_URL } from './defaultLogo'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type CanvasImageLike, type Rect } from './canvas2d'
 
@@ -67,10 +67,9 @@ export interface DrawTimerOptions {
   headerImage?: CanvasImageLike | null
   /** Bundled fl.png, loaded once by the caller and shared across every timing-tower widget/frame. */
   fastestLapIcon?: CanvasImageLike | null
+  fontFamily?: string
 }
 
-const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
-const TIMING_TOWER_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
 /** Conventional "fastest lap" color (iRacing/F1-game style), used for the fastest row's badge and the fastest-lap glow. */
 const LAP_PURPLE = '#b026ff'
 /** How long the "new fastest lap" glow plays after the crossing that set it. */
@@ -86,10 +85,11 @@ const ROW_ASPECT_REFERENCE = 6
 const TIME_SIZING_REFERENCE = '00:00.00'
 
 export function drawTimer(ctx: Canvas2DLike, options: DrawTimerOptions): void {
-  const { rect, elapsedMs, style, lapState, headerImage, fastestLapIcon } = options
+  const { rect, elapsedMs, style, lapState, headerImage, fastestLapIcon, fontFamily } = options
+  const fontStack = resolveFontStack(fontFamily, 'regular')
 
   if (style.mode === 'laps') {
-    drawTimingTower(ctx, rect, style, lapState ?? null, headerImage ?? null, fastestLapIcon ?? null)
+    drawTimingTower(ctx, rect, style, lapState ?? null, headerImage ?? null, fastestLapIcon ?? null, fontStack)
     return
   }
 
@@ -103,7 +103,7 @@ export function drawTimer(ctx: Canvas2DLike, options: DrawTimerOptions): void {
 
   let timeY = rect.y + rect.h * 0.72
   if (style.label) {
-    fitFontSizePx(ctx, style.label, maxWidth, rect.h * 0.22, '700', TIMING_TOWER_FONT_STACK)
+    fitFontSizePx(ctx, style.label, maxWidth, rect.h * 0.22, '700', fontStack)
     drawOutlinedText(ctx, style.label.toUpperCase(), cx, rect.y + rect.h * 0.3, style.labelColor, outlineWidth, style.textOutlineColor)
     timeY = rect.y + rect.h * 0.82
   }
@@ -111,7 +111,7 @@ export function drawTimer(ctx: Canvas2DLike, options: DrawTimerOptions): void {
   // Sized once against a fixed reference string, not the live (per-frame-changing) text -- this
   // ticks every frame, and fitting to its own actual width would make the font size jitter as
   // different digits (which measure at slightly different widths) cycle through.
-  fitFontSizePx(ctx, TIME_SIZING_REFERENCE, maxWidth, rect.h * 0.46, '700', TIMING_TOWER_FONT_STACK)
+  fitFontSizePx(ctx, TIME_SIZING_REFERENCE, maxWidth, rect.h * 0.46, '700', fontStack)
   drawOutlinedText(ctx, formatTime(elapsedMs, style.showCentiseconds), cx, timeY, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }
@@ -137,7 +137,15 @@ function drawTimingTowerBackground(ctx: Canvas2DLike, rect: Rect, style: TimerSt
 
 /** Logo stacked above the header text (both centered), matching the reference F1 graphic's
  *  layout -- previously the logo sat to the left of the text, which didn't match. */
-function drawTimingTowerHeader(ctx: Canvas2DLike, rect: Rect, headerH: number, style: TimerStyle, outlineWidth: number, headerImage: CanvasImageLike | null): void {
+function drawTimingTowerHeader(
+  ctx: Canvas2DLike,
+  rect: Rect,
+  headerH: number,
+  style: TimerStyle,
+  outlineWidth: number,
+  headerImage: CanvasImageLike | null,
+  fontStack: string
+): void {
   const hasImage = Boolean(headerImage) && headerImage!.width > 0 && headerImage!.height > 0
   const hasText = Boolean(style.headerText)
   const padding = headerH * 0.08
@@ -169,7 +177,7 @@ function drawTimingTowerHeader(ctx: Canvas2DLike, rect: Rect, headerH: number, s
   ctx.textBaseline = 'middle'
   const cx = rect.x + rect.w / 2
   const cy = textAreaY + textAreaH / 2
-  fitFontSizePx(ctx, style.headerText, rect.w * SAFE_WIDTH_FRACTION, textAreaH * 0.7, '700', TIMING_TOWER_FONT_STACK)
+  fitFontSizePx(ctx, style.headerText, rect.w * SAFE_WIDTH_FRACTION, textAreaH * 0.7, '700', fontStack)
   drawOutlinedText(ctx, style.headerText, cx, cy, style.headerTextColor, outlineWidth, style.textOutlineColor)
   ctx.restore()
 }
@@ -184,7 +192,8 @@ function drawTimingTowerRow(
   outlineWidth: number,
   fastestLapIcon: CanvasImageLike | null,
   isFlashing: boolean,
-  flashGlow: number
+  flashGlow: number,
+  fontStack: string
 ): void {
   // Content (badge/icon/font) sizes off whichever is smaller of the row's actual height or a
   // width-derived equivalent -- otherwise widening the widget only grows the time text (via its
@@ -211,7 +220,7 @@ function drawTimingTowerRow(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const badgeText = String(entry.lapNumber)
-  fitFontSizePx(ctx, badgeText, badgeSize * 0.8, badgeSize * 0.55, '700', TIMING_TOWER_FONT_STACK)
+  fitFontSizePx(ctx, badgeText, badgeSize * 0.8, badgeSize * 0.55, '700', fontStack)
   ctx.fillStyle = '#ffffff'
   ctx.fillText(badgeText, badgeX + badgeSize / 2, badgeY + badgeSize / 2)
   ctx.restore()
@@ -226,7 +235,7 @@ function drawTimingTowerRow(
   ctx.save()
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  fitFontSizePx(ctx, TIME_SIZING_REFERENCE, Math.max(10, timeAreaWidth), contentScale * 0.5, '700', TIMING_TOWER_FONT_STACK)
+  fitFontSizePx(ctx, TIME_SIZING_REFERENCE, Math.max(10, timeAreaWidth), contentScale * 0.5, '700', fontStack)
   drawOutlinedText(ctx, timeText, timeCx, rowY + rowH / 2, style.color, outlineWidth, style.textOutlineColor)
   ctx.restore()
 
@@ -264,7 +273,8 @@ function drawTimingTower(
   style: TimerStyle,
   lapState: LapState | null,
   headerImage: CanvasImageLike | null,
-  fastestLapIcon: CanvasImageLike | null
+  fastestLapIcon: CanvasImageLike | null,
+  fontStack: string
 ): void {
   drawTimingTowerBackground(ctx, rect, style)
 
@@ -273,7 +283,7 @@ function drawTimingTower(
   const headerH = hasHeader ? rect.h * 0.18 : 0
 
   if (hasHeader) {
-    drawTimingTowerHeader(ctx, rect, headerH, style, outlineWidth, headerImage)
+    drawTimingTowerHeader(ctx, rect, headerH, style, outlineWidth, headerImage, fontStack)
   }
 
   if (!lapState) return
@@ -292,6 +302,6 @@ function drawTimingTower(
   const rows = selectTimingTowerRows(lapState.history, style)
   rows.forEach((entry, i) => {
     const rowIsFlashing = isNewBestFlashing && entry.isBest && entry.lapNumber === mostRecentLapNumber
-    drawTimingTowerRow(ctx, rect, rowsTop + rowH * i, rowH, entry, style, outlineWidth, fastestLapIcon, rowIsFlashing, flashGlow)
+    drawTimingTowerRow(ctx, rect, rowsTop + rowH * i, rowH, entry, style, outlineWidth, fastestLapIcon, rowIsFlashing, flashGlow, fontStack)
   })
 }
