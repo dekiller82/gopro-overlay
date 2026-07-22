@@ -849,6 +849,16 @@ body {
   gap: 8px;
 }
 
+.field__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field__row input[type='number'] {
+  flex: 1;
+}
+
 .field__hint {
   font-size: 11px;
   color: var(--text-dim);

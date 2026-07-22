@@ -94,6 +94,16 @@ export interface TelemetrySampler {
   elevationProfile: ElevationProfilePoint[]
   /** Gaussian-smoothed altitude at `cts`, meters -- for the Elevation widget's numeric readout. */
   elevationAt: (cts: number, smoothingMs?: number) => number
+  /** Cumulative GPS arc-length from the very start of the recording up to `cts`, meters -- for the
+   *  Distance widget's live readout. A cheap prefix-sum lookup, same cumDistanceM array sessionStatsAt
+   *  already uses internally. */
+  distanceAt: (cts: number) => number
+  /** Compass heading in degrees (0=N, 90=E, ...) at `cts`, derived from the direction of travel
+   *  between GPS fixes (course over ground) -- GoPro has no magnetometer, so this is the only
+   *  heading source available, and is meaningless while stationary (see headingComponents' carry-
+   *  forward behavior below). Circularly smoothed (via component-wise cos/sin averaging, not a
+   *  naive linear average, which would break at the 359->0 wraparound) over a `smoothingMs` window. */
+  headingAt: (cts: number, smoothingMs?: number) => number
 }
 
 const MIN_SMOOTHING_MS = 60
@@ -101,6 +111,37 @@ export const DEFAULT_SPEED_SMOOTHING_MS = 350
 export const DEFAULT_GFORCE_SMOOTHING_MS = 150
 export const DEFAULT_ROLL_SMOOTHING_MS = 150
 export const DEFAULT_ELEVATION_SMOOTHING_MS = 500
+export const DEFAULT_HEADING_SMOOTHING_MS = 400
+
+interface HeadingComponent {
+  cts: number
+  cosB: number
+  sinB: number
+}
+
+/** One bearing per sample (degrees expressed as unit-circle cos/sin components, not a raw degree
+ *  number, so headingAt can circularly average them with the existing gaussianSmoothedValueAt
+ *  helper instead of needing a bespoke wraparound-aware smoother). Bearing between sample i and i+1
+ *  (or i-1 and i for the last sample), in the same local planar (x=east, y=north) frame trackPoints
+ *  already uses. When two consecutive points coincide (car stationary -- a zero-length segment has
+ *  no real direction), the previous bearing is carried forward instead of reporting a false North,
+ *  same "don't let a degenerate case dominate the reading" reasoning as the GRAV-all-zero fix. */
+function computeHeadingComponents(samples: TelemetrySample[], trackPoints: ProjectedPoint[]): HeadingComponent[] {
+  const n = samples.length
+  if (n === 0) return []
+
+  const components: HeadingComponent[] = new Array(n)
+  let bearingRad = 0
+  for (let i = 0; i < n; i++) {
+    const a = i < n - 1 ? i : i - 1
+    const b = i < n - 1 ? i + 1 : i
+    const dx = trackPoints[b].x - trackPoints[a].x
+    const dy = trackPoints[b].y - trackPoints[a].y
+    if (dx * dx + dy * dy > 1e-6) bearingRad = Math.atan2(dx, dy)
+    components[i] = { cts: samples[i].cts, cosB: Math.cos(bearingRad), sinB: Math.sin(bearingRad) }
+  }
+  return components
+}
 
 function computeBounds(points: ProjectedPoint[]): TrackBounds {
   if (points.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 }
@@ -155,10 +196,25 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
   const speedBounds = computeSpeedBounds(trackSpeeds)
   const cumDistanceM = computeCumulativeDistanceM(samples)
   const elevationProfile: ElevationProfilePoint[] = samples.map((s, i) => ({ distanceM: cumDistanceM[i], altitude: s.altitude, cts: s.cts }))
+  const headingComponents = computeHeadingComponents(samples, trackPoints)
 
   function elevationAt(cts: number, smoothingMs = DEFAULT_ELEVATION_SMOOTHING_MS): number {
     if (samples.length === 0) return 0
     return gaussianSmoothedValueAt(samples, cts, Math.max(MIN_SMOOTHING_MS, smoothingMs), (s) => s.altitude)
+  }
+
+  function distanceAt(cts: number): number {
+    if (samples.length === 0) return 0
+    return cumDistanceM[findBracketIndex(samples, cts)]
+  }
+
+  function headingAt(cts: number, smoothingMs = DEFAULT_HEADING_SMOOTHING_MS): number {
+    if (headingComponents.length === 0) return 0
+    const window = Math.max(MIN_SMOOTHING_MS, smoothingMs)
+    const cosAvg = gaussianSmoothedValueAt(headingComponents, cts, window, (c) => c.cosB)
+    const sinAvg = gaussianSmoothedValueAt(headingComponents, cts, window, (c) => c.sinB)
+    const deg = (Math.atan2(sinAvg, cosAvg) * 180) / Math.PI
+    return deg < 0 ? deg + 360 : deg
   }
 
   function sessionStatsAt(startCts: number, endCts: number): SessionStats {
@@ -228,6 +284,8 @@ export function createTelemetrySampler(telemetry: TelemetryData): TelemetrySampl
     rollAngleAt,
     sessionStatsAt,
     elevationProfile,
-    elevationAt
+    elevationAt,
+    distanceAt,
+    headingAt
   }
 }

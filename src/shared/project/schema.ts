@@ -372,6 +372,68 @@ const elevationWidgetSchema = z.object({
   style: elevationStyleSchema
 })
 
+const distanceStyleSchema = z.object({
+  label: z.string(),
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  color: z.string(),
+  labelColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number()
+})
+
+const distanceWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('distance'),
+  ...transformFields,
+  style: distanceStyleSchema
+})
+
+const compassStyleSchema = z.object({
+  label: z.string(),
+  color: z.string(),
+  labelColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number(),
+  smoothingMs: z.number()
+})
+
+const compassWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('compass'),
+  ...transformFields,
+  style: compassStyleSchema
+})
+
+const accelTimerStyleSchema = z.object({
+  label: z.string(),
+  unit: z.enum(['kmh', 'mph', 'kn']),
+  targetSpeedsMps: z.array(z.number()),
+  stationaryThresholdMps: z.number(),
+  minStationaryMs: z.number(),
+  showBest: z.boolean(),
+  color: z.string(),
+  labelColor: z.string(),
+  bestColor: z.string(),
+  textOutlineWidth: z.number(),
+  textOutlineColor: z.string(),
+  backgroundColor: z.string(),
+  backgroundOpacity: z.number(),
+  cornerRadius: z.number()
+})
+
+const accelTimerWidgetSchema = z.object({
+  id: z.string(),
+  type: z.literal('accelTimer'),
+  ...transformFields,
+  style: accelTimerStyleSchema
+})
+
 export const widgetSchema = z.discriminatedUnion('type', [
   gpsTrackWidgetSchema,
   speedometerAnalogWidgetSchema,
@@ -387,7 +449,10 @@ export const widgetSchema = z.discriminatedUnion('type', [
   sessionSummaryWidgetSchema,
   lapConsistencyWidgetSchema,
   customTextWidgetSchema,
-  elevationWidgetSchema
+  elevationWidgetSchema,
+  distanceWidgetSchema,
+  compassWidgetSchema,
+  accelTimerWidgetSchema
 ])
 
 export const videoMetaSchema = z.object({

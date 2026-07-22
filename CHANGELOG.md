@@ -2,6 +2,21 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.12] - 2026-07-22
+
+### Added
+- **Distance widget** — a live running total of GPS arc-length covered since the start of the
+  recording, for a distance counter you can keep on screen the whole session (previously only
+  visible as a final total on the Session Summary card).
+- **Compass/Heading widget** — a digital "047° NE" readout of direction of travel from GPS
+  course-over-ground. GoPro cameras have no magnetometer, so this reflects which way you're moving,
+  not which way the camera physically faces, and reads meaninglessly while stationary.
+- **Acceleration Timer widget** — a Dragy-style launch timer. Auto-detects a genuine stop followed
+  by acceleration (not just any slow corner) and times how long it takes to reach each of your own
+  configured target speeds, keeping a session-best per target alongside the live current run. Target
+  speeds are user-configurable rather than Dragy's fixed highway splits (0-60mph, 1/4 mile), since
+  karts run a much lower, track-specific speed range.
+
 ## [0.1.11] - 2026-07-21
 
 ### Added

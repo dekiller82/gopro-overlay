@@ -6,6 +6,7 @@ import type { DeltaState } from '../telemetry/deltaTime'
 import type { ApexEvent } from '../telemetry/apex'
 import type { LapSpeedTrace } from '../telemetry/speedTrace'
 import type { ElevationProfilePoint, GForceHistoryPoint, GForceReading, RollAngleReading } from '../telemetry/sampleAt'
+import type { AccelRunState } from '../telemetry/accelRuns'
 import type { WidgetInstance } from '../types'
 import type { Canvas2DLike, CanvasImageLike, Rect } from './canvas2d'
 import { drawGpsWidget } from './drawGpsWidget'
@@ -22,6 +23,9 @@ import { drawSessionSummary, type SessionSummaryData } from './drawSessionSummar
 import { drawLapConsistency } from './drawLapConsistency'
 import { drawCustomText } from './drawCustomText'
 import { drawElevation } from './drawElevation'
+import { drawDistance } from './drawDistance'
+import { drawCompass } from './drawCompass'
+import { drawAccelTimer } from './drawAccelTimer'
 
 export interface WidgetDrawContext {
   trackPoints: ProjectedPoint[]
@@ -81,6 +85,16 @@ export interface WidgetDrawContext {
    *  depend on cts or per-widget style). */
   elevationReading?: number
   elevationProfile?: ElevationProfilePoint[]
+  /** Only relevant for a 'distance' widget -- resolved per widget instance via sampler.distanceAt
+   *  (a cheap prefix-sum lookup, no per-widget state to precompute). */
+  distanceReading?: number
+  /** Only relevant for a 'compass' widget -- resolved per widget instance via sampler.headingAt
+   *  (its own smoothing is per-widget style, like elevation/gForce/roll). */
+  headingReading?: number
+  /** Only relevant for an 'accelTimer' widget -- detectAccelRuns is precomputed once per widget
+   *  instance (its target speeds/thresholds are per-widget style, same as Apex Speed Callout's own
+   *  detection thresholds), getAccelRunStateAt resolved fresh per frame from that. */
+  accelRunState?: AccelRunState
 }
 
 function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Rect, data: WidgetDrawContext): void {
@@ -177,6 +191,19 @@ function renderWidgetContent(ctx: Canvas2DLike, widget: WidgetInstance, rect: Re
         currentAltitudeM: data.elevationReading ?? 0,
         profile: data.elevationProfile ?? [],
         cts: data.cts
+      })
+      return
+    case 'distance':
+      drawDistance(ctx, { rect, style: widget.style, distanceM: data.distanceReading ?? 0 })
+      return
+    case 'compass':
+      drawCompass(ctx, { rect, style: widget.style, headingDeg: data.headingReading ?? 0 })
+      return
+    case 'accelTimer':
+      drawAccelTimer(ctx, {
+        rect,
+        style: widget.style,
+        state: data.accelRunState ?? { isActive: false, elapsedMs: null, currentSplits: [], bestSplits: [] }
       })
       return
   }

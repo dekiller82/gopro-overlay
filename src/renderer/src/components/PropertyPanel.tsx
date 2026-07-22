@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { SpeedUnit } from '@shared/units'
+import { convertSpeed, convertToMps, speedUnitLabel, type SpeedUnit } from '@shared/units'
 import type { WidgetInstance, WidgetLayoutPreset } from '@shared/types'
 import { GPS_STYLE_PRESETS, SPEEDOMETER_STYLE_PRESETS, TIMER_STYLE_PRESETS, type StylePreset } from '@shared/widgets/presets'
 import { DEFAULT_GPS_STYLE, type GpsWidgetStyle } from '@shared/render/drawGpsWidget'
@@ -16,6 +16,9 @@ import { DEFAULT_SESSION_SUMMARY_STYLE } from '@shared/render/drawSessionSummary
 import { DEFAULT_LAP_CONSISTENCY_STYLE } from '@shared/render/drawLapConsistency'
 import { DEFAULT_CUSTOM_TEXT_STYLE } from '@shared/render/drawCustomText'
 import { DEFAULT_ELEVATION_STYLE } from '@shared/render/drawElevation'
+import { DEFAULT_DISTANCE_STYLE } from '@shared/render/drawDistance'
+import { DEFAULT_COMPASS_STYLE } from '@shared/render/drawCompass'
+import { DEFAULT_ACCEL_TIMER_STYLE } from '@shared/render/drawAccelTimer'
 import { applyThemeToWidget, LAYOUT_THEMES, type LayoutTheme } from '@shared/widgets/themes'
 import { detectLapCrossings, nearestLatLon } from '@shared/telemetry/laps'
 import { alignedX, alignedY, type HorizontalAlign, type VerticalAlign } from '@shared/widgets/alignment'
@@ -69,6 +72,12 @@ function widgetLabel(type: WidgetInstance['type']): string {
       return 'Custom Text/Logo'
     case 'elevation':
       return 'Elevation'
+    case 'distance':
+      return 'Distance'
+    case 'compass':
+      return 'Compass/Heading'
+    case 'accelTimer':
+      return 'Acceleration Timer'
   }
 }
 
@@ -336,6 +345,15 @@ function PropertyPanel(): React.JSX.Element {
           </button>
           <button className="property-panel__add" onClick={() => addWidget('elevation')}>
             + Elevation
+          </button>
+          <button className="property-panel__add" onClick={() => addWidget('distance')}>
+            + Distance
+          </button>
+          <button className="property-panel__add" onClick={() => addWidget('compass')}>
+            + Compass/Heading
+          </button>
+          <button className="property-panel__add" onClick={() => addWidget('accelTimer')}>
+            + Acceleration Timer
           </button>
         </div>
         <ul className="widget-list">
@@ -2861,6 +2879,419 @@ function PropertyPanel(): React.JSX.Element {
                 />
               </label>
             </>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'distance' && (() => {
+        const style = { ...DEFAULT_DISTANCE_STYLE, ...selected.style }
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Distance style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">Live total distance covered since the start of the recording.</span>
+
+          <label className="field">
+            <span>Unit</span>
+            <select value={style.unit} onChange={(e) => updateWidget(selected.id, { style: { ...style, unit: e.target.value as SpeedUnit } })}>
+              <option value="kmh">Kilometers</option>
+              <option value="mph">Miles</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Label</span>
+            <input type="text" value={style.label} onChange={(e) => updateWidget(selected.id, { style: { ...style, label: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Label color</span>
+            <input type="color" value={style.labelColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, labelColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Value color</span>
+            <input type="color" value={style.color} onChange={(e) => updateWidget(selected.id, { style: { ...style, color: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Text outline ({style.textOutlineWidth}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={6}
+              step={1}
+              value={style.textOutlineWidth}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+            />
+          </label>
+
+          {style.textOutlineWidth > 0 && (
+            <label className="field">
+              <span>Outline color</span>
+              <input
+                type="color"
+                value={style.textOutlineColor}
+                onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+              />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'compass' && (() => {
+        const style = { ...DEFAULT_COMPASS_STYLE, ...selected.style }
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Compass/Heading style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">
+            Direction of travel from GPS course-over-ground -- GoPro cameras have no magnetometer, so this reads the
+            way you're moving, not which way the camera physically faces, and is meaningless while stationary.
+          </span>
+
+          <label className="field">
+            <span>Label</span>
+            <input type="text" value={style.label} onChange={(e) => updateWidget(selected.id, { style: { ...style, label: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Label color</span>
+            <input type="color" value={style.labelColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, labelColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Value color</span>
+            <input type="color" value={style.color} onChange={(e) => updateWidget(selected.id, { style: { ...style, color: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Smoothing ({style.smoothingMs}ms)</span>
+            <input
+              type="range"
+              min={0}
+              max={2000}
+              step={50}
+              value={style.smoothingMs}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, smoothingMs: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Text outline ({style.textOutlineWidth}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={6}
+              step={1}
+              value={style.textOutlineWidth}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+            />
+          </label>
+
+          {style.textOutlineWidth > 0 && (
+            <label className="field">
+              <span>Outline color</span>
+              <input
+                type="color"
+                value={style.textOutlineColor}
+                onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+              />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Background color</span>
+            <input
+              type="color"
+              value={style.backgroundColor}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundColor: e.target.value } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Background opacity ({style.backgroundOpacity.toFixed(2)})</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={style.backgroundOpacity}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, backgroundOpacity: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Corner radius ({style.cornerRadius}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={1}
+              value={style.cornerRadius}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, cornerRadius: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Rotation ({selected.rotation}°)</span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={selected.rotation}
+              onChange={(e) => updateWidget(selected.id, { rotation: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        )
+      })()}
+
+      {selected && selected.type === 'accelTimer' && (() => {
+        const style = { ...DEFAULT_ACCEL_TIMER_STYLE, ...selected.style }
+        const unitLabel = speedUnitLabel(style.unit)
+        return (
+        <div className="property-panel__section">
+          <div className="property-panel__header">
+            <span>Acceleration Timer style</span>
+            <button className="property-panel__delete" onClick={() => removeWidget(selected.id)}>
+              Delete
+            </button>
+          </div>
+
+          <span className="field__hint">
+            Dragy-style launch timer: auto-detects a genuine stop followed by acceleration, then times how long it
+            takes to reach each target speed below, plus keeps a session-best per target.
+          </span>
+
+          <label className="field">
+            <span>Unit</span>
+            <select value={style.unit} onChange={(e) => updateWidget(selected.id, { style: { ...style, unit: e.target.value as SpeedUnit } })}>
+              <option value="kmh">km/h</option>
+              <option value="mph">mph</option>
+              <option value="kn">knots</option>
+            </select>
+          </label>
+
+          <div className="field">
+            <span>Target speeds ({unitLabel})</span>
+            {style.targetSpeedsMps.map((targetMps, i) => (
+              <div key={i} className="field__row">
+                <input
+                  type="number"
+                  min={1}
+                  value={Math.round(convertSpeed(targetMps, style.unit))}
+                  onChange={(e) => {
+                    const next = [...style.targetSpeedsMps]
+                    next[i] = convertToMps(Number(e.target.value), style.unit)
+                    updateWidget(selected.id, { style: { ...style, targetSpeedsMps: next } })
+                  }}
+                />
+                <button
+                  className="property-panel__delete"
+                  onClick={() => {
+                    const next = style.targetSpeedsMps.filter((_, idx) => idx !== i)
+                    updateWidget(selected.id, { style: { ...style, targetSpeedsMps: next } })
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              className="property-panel__add"
+              onClick={() => {
+                const last = style.targetSpeedsMps[style.targetSpeedsMps.length - 1] ?? convertToMps(40, style.unit)
+                updateWidget(selected.id, { style: { ...style, targetSpeedsMps: [...style.targetSpeedsMps, last + convertToMps(20, style.unit)] } })
+              }}
+            >
+              + Add target speed
+            </button>
+          </div>
+
+          <label className="field">
+            <span>Stationary threshold ({Math.round(convertSpeed(style.stationaryThresholdMps, style.unit))} {unitLabel})</span>
+            <input
+              type="range"
+              min={1}
+              max={Math.round(convertSpeed(5, style.unit))}
+              step={1}
+              value={Math.round(convertSpeed(style.stationaryThresholdMps, style.unit))}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, stationaryThresholdMps: convertToMps(Number(e.target.value), style.unit) } })}
+            />
+            <span className="field__hint">
+              At or under this speed counts as "stopped" -- raise it if a slow corner on your track is close enough
+              to a stop to falsely trigger a launch, lower it if GPS noise at a real standstill reads above it.
+            </span>
+          </label>
+
+          <label className="field">
+            <span>Min stop duration ({style.minStationaryMs}ms)</span>
+            <input
+              type="range"
+              min={100}
+              max={3000}
+              step={100}
+              value={style.minStationaryMs}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, minStationaryMs: Number(e.target.value) } })}
+            />
+          </label>
+
+          <label className="field">
+            <span>Label</span>
+            <input type="text" value={style.label} onChange={(e) => updateWidget(selected.id, { style: { ...style, label: e.target.value } })} />
+          </label>
+
+          <label className="field field--checkbox">
+            <input
+              type="checkbox"
+              checked={style.showBest}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, showBest: e.target.checked } })}
+            />
+            <span>Show session-best (PB) alongside current run</span>
+          </label>
+
+          <label className="field">
+            <span>Label color</span>
+            <input type="color" value={style.labelColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, labelColor: e.target.value } })} />
+          </label>
+
+          <label className="field">
+            <span>Value color</span>
+            <input type="color" value={style.color} onChange={(e) => updateWidget(selected.id, { style: { ...style, color: e.target.value } })} />
+          </label>
+
+          {style.showBest && (
+            <label className="field">
+              <span>Best (PB) color</span>
+              <input type="color" value={style.bestColor} onChange={(e) => updateWidget(selected.id, { style: { ...style, bestColor: e.target.value } })} />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Text outline ({style.textOutlineWidth}px)</span>
+            <input
+              type="range"
+              min={0}
+              max={6}
+              step={1}
+              value={style.textOutlineWidth}
+              onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineWidth: Number(e.target.value) } })}
+            />
+          </label>
+
+          {style.textOutlineWidth > 0 && (
+            <label className="field">
+              <span>Outline color</span>
+              <input
+                type="color"
+                value={style.textOutlineColor}
+                onChange={(e) => updateWidget(selected.id, { style: { ...style, textOutlineColor: e.target.value } })}
+              />
+            </label>
           )}
 
           <label className="field">

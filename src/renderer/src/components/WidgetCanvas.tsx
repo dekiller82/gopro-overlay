@@ -8,6 +8,7 @@ import type { ProjectedPoint } from '@shared/telemetry/interpolate'
 import type { LapSpeedTrace } from '@shared/telemetry/speedTrace'
 import type { SessionSummaryData } from '@shared/render/drawSessionSummary'
 import { detectApexEvents } from '@shared/telemetry/apex'
+import { detectAccelRuns, getAccelRunStateAt } from '@shared/telemetry/accelRuns'
 import { buildManualCalibration, buildManualCalibrationForRoll } from '@shared/telemetry/imuCalibration'
 import { drawWidget } from '@shared/render/drawWidget'
 import { buildColoredGpsTrackCache } from '@shared/render/drawGpsWidget'
@@ -78,6 +79,21 @@ function WidgetCanvas({
     [gpsShowApexMarkers, apexEvents, sampler]
   )
 
+  // Launch detection thresholds/target speeds are per-widget style (like Apex Speed Callout's own
+  // thresholds), so precomputed once here per widget instance rather than shared globally like
+  // lap/sector/delta state.
+  const isAccelTimer = widget.type === 'accelTimer'
+  const accelTargetSpeeds = isAccelTimer ? widget.style.targetSpeedsMps : null
+  const accelStationaryThresholdMps = isAccelTimer ? widget.style.stationaryThresholdMps : null
+  const accelMinStationaryMs = isAccelTimer ? widget.style.minStationaryMs : null
+  const accelRuns = useMemo(
+    () =>
+      accelTargetSpeeds && accelStationaryThresholdMps !== null && accelMinStationaryMs !== null
+        ? detectAccelRuns(sampler.samples, accelTargetSpeeds, accelStationaryThresholdMps, accelMinStationaryMs)
+        : [],
+    [sampler, accelTargetSpeeds, accelStationaryThresholdMps, accelMinStationaryMs]
+  )
+
   // colorMode 'speed'/'braking' segments never change frame-to-frame (only the dot does), so this
   // is pre-rendered once into an offscreen canvas and reused every frame instead of re-stroking
   // potentially tens of thousands of individual segments 60 times a second during playback -- see
@@ -137,6 +153,9 @@ function WidgetCanvas({
     let gForceHistory
     let rollAngleReading
     let elevationReading
+    let distanceReading
+    let headingReading
+    let accelRunState
     if (widget.type === 'gForceDiagram') {
       const cal = widget.style.useManualAxes
         ? buildManualCalibration(widget.style.verticalAxis, widget.style.longitudinalAxis, widget.style.verticalInverted, widget.style.longitudinalInverted, widget.style.lateralInverted)
@@ -150,6 +169,12 @@ function WidgetCanvas({
       rollAngleReading = sampler.rollAngleAt(currentTimeMs, widget.style.smoothingMs, cal)
     } else if (widget.type === 'elevation') {
       elevationReading = sampler.elevationAt(currentTimeMs, widget.style.smoothingMs)
+    } else if (widget.type === 'distance') {
+      distanceReading = sampler.distanceAt(currentTimeMs)
+    } else if (widget.type === 'compass') {
+      headingReading = sampler.headingAt(currentTimeMs, widget.style.smoothingMs)
+    } else if (widget.type === 'accelTimer') {
+      accelRunState = getAccelRunStateAt(accelRuns, widget.style.targetSpeedsMps, currentTimeMs)
     }
 
     const rect = { x: 0, y: 0, w: pixelWidth, h: pixelHeight }
@@ -181,7 +206,10 @@ function WidgetCanvas({
       rollAngleReading,
       hasImuData: sampler.hasImuData,
       elevationReading,
-      elevationProfile: sampler.elevationProfile
+      elevationProfile: sampler.elevationProfile,
+      distanceReading,
+      headingReading,
+      accelRunState
     })
   }, [
     widget,
@@ -201,7 +229,8 @@ function WidgetCanvas({
     fastestLapIcon,
     coloredTrackImage,
     lapSpeedTraces,
-    currentLapSpeedTrace
+    currentLapSpeedTrace,
+    accelRuns
   ])
 
   return (

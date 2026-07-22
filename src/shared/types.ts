@@ -191,6 +191,24 @@ export interface ElevationWidgetInstance extends WidgetTransform {
   style: import('./render/drawElevation').ElevationStyle
 }
 
+export interface DistanceWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'distance'
+  style: import('./render/drawDistance').DistanceStyle
+}
+
+export interface CompassWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'compass'
+  style: import('./render/drawCompass').CompassStyle
+}
+
+export interface AccelTimerWidgetInstance extends WidgetTransform {
+  id: string
+  type: 'accelTimer'
+  style: import('./render/drawAccelTimer').AccelTimerStyle
+}
+
 export type WidgetInstance =
   | GpsTrackWidgetInstance
   | SpeedometerAnalogWidgetInstance
@@ -207,6 +225,9 @@ export type WidgetInstance =
   | LapConsistencyWidgetInstance
   | CustomTextWidgetInstance
   | ElevationWidgetInstance
+  | DistanceWidgetInstance
+  | CompassWidgetInstance
+  | AccelTimerWidgetInstance
 
 export interface ProjectPayload {
   imported: ImportResult

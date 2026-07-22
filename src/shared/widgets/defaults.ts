@@ -13,6 +13,9 @@ import { DEFAULT_SESSION_SUMMARY_STYLE } from '../render/drawSessionSummary'
 import { DEFAULT_LAP_CONSISTENCY_STYLE } from '../render/drawLapConsistency'
 import { DEFAULT_CUSTOM_TEXT_STYLE } from '../render/drawCustomText'
 import { DEFAULT_ELEVATION_STYLE } from '../render/drawElevation'
+import { DEFAULT_DISTANCE_STYLE } from '../render/drawDistance'
+import { DEFAULT_COMPASS_STYLE } from '../render/drawCompass'
+import { DEFAULT_ACCEL_TIMER_STYLE } from '../render/drawAccelTimer'
 import type {
   GpsTrackWidgetInstance,
   SpeedometerAnalogWidgetInstance,
@@ -29,6 +32,9 @@ import type {
   LapConsistencyWidgetInstance,
   CustomTextWidgetInstance,
   ElevationWidgetInstance,
+  DistanceWidgetInstance,
+  CompassWidgetInstance,
+  AccelTimerWidgetInstance,
   WidgetInstance
 } from '../types'
 
@@ -262,6 +268,51 @@ export function createElevationWidget(): ElevationWidgetInstance {
   }
 }
 
+export function createDistanceWidget(): DistanceWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'distance',
+    x: 0.04,
+    y: 0.06,
+    w: 0.16,
+    h: 0.1,
+    rotation: 0,
+    zIndex: 1,
+    locked: false,
+    style: { ...DEFAULT_DISTANCE_STYLE }
+  }
+}
+
+export function createCompassWidget(): CompassWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'compass',
+    x: 0.56,
+    y: 0.06,
+    w: 0.16,
+    h: 0.1,
+    rotation: 0,
+    zIndex: 1,
+    locked: false,
+    style: { ...DEFAULT_COMPASS_STYLE }
+  }
+}
+
+export function createAccelTimerWidget(): AccelTimerWidgetInstance {
+  return {
+    id: uuidv4(),
+    type: 'accelTimer',
+    x: 0.04,
+    y: 0.46,
+    w: 0.24,
+    h: 0.28,
+    rotation: 0,
+    zIndex: 1,
+    locked: false,
+    style: { ...DEFAULT_ACCEL_TIMER_STYLE }
+  }
+}
+
 export function createWidget(type: WidgetInstance['type']): WidgetInstance {
   switch (type) {
     case 'gpsTrack':
@@ -294,5 +345,11 @@ export function createWidget(type: WidgetInstance['type']): WidgetInstance {
       return createCustomTextWidget()
     case 'elevation':
       return createElevationWidget()
+    case 'distance':
+      return createDistanceWidget()
+    case 'compass':
+      return createCompassWidget()
+    case 'accelTimer':
+      return createAccelTimerWidget()
   }
 }

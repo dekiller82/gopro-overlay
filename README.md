@@ -23,7 +23,7 @@ speedometer widgets running together over real footage.
 - **Multi-clip import** — select every part of a chapter-split GoPro recording
   (`GH010230.MP4`, `GH020230.MP4`, ...) at once; they're stitched into a single timeline with
   continuous telemetry.
-- **15 widgets** (14 telemetry-driven, plus a freeform text/logo widget), each fully configurable
+- **18 widgets** (17 telemetry-driven, plus a freeform text/logo widget), each fully configurable
   (colors, fonts, size, smoothing) via the property panel — see [Widgets](#widgets) below for what
   each one shows and its own options.
 - **Lap & sector detection** from a start/finish line you place on the GPS track — everything
@@ -150,6 +150,20 @@ Lap/sector-dependent widgets all key off the single start/finish point you place
   session (readout, graph, or both, independently toggleable), with a moving marker showing where
   you are on the profile right now. Most useful for hillclimbs/rally; on a flat closed circuit it'll
   understandably look close to a flat line.
+
+- **Distance** — a live running total of GPS arc-length covered since the start of the recording,
+  for keeping a distance counter on screen the whole session instead of only seeing a final total on
+  the Session Summary card.
+
+- **Compass/Heading** — a digital "047° NE" readout of your direction of travel, from GPS
+  course-over-ground (GoPro cameras have no magnetometer, so this is which way you're moving, not
+  which way the camera physically faces — and reads meaninglessly while stationary).
+
+- **Acceleration Timer** — a Dragy-style launch timer: auto-detects a genuine stop followed by
+  acceleration and times how long it takes to reach each of your own configured target speeds (not
+  Dragy's fixed highway splits — karts don't reach highway speeds), keeping a session-best per target
+  alongside the current run. Tunable stationary-speed threshold and minimum stop duration in case a
+  slow corner on your track needs to be told apart from a real stop.
 
 ## Requirements
 

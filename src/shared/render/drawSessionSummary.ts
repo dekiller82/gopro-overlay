@@ -1,5 +1,5 @@
 import { formatTime } from '../format'
-import { convertSpeed, speedUnitLabel, type SpeedUnit } from '../units'
+import { convertSpeed, formatDistance, speedUnitLabel, type SpeedUnit } from '../units'
 import { FORMULA1_BOLD, FORMULA1_REGULAR } from './fonts'
 import { drawOutlinedText, fillRoundedRect, fitFontSizePx, scaleToRect, type Canvas2DLike, type Rect } from './canvas2d'
 
@@ -67,15 +67,6 @@ export interface DrawSessionSummaryOptions {
 const FONT_STACK = 'ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif'
 const TITLE_FONT_STACK = `"${FORMULA1_BOLD}", ${FONT_STACK}`
 const VALUE_FONT_STACK = `"${FORMULA1_REGULAR}", ${FONT_STACK}`
-
-function formatDistance(meters: number, unit: SpeedUnit): string {
-  if (unit === 'mph') {
-    const miles = meters / 1609.344
-    return `${miles.toFixed(miles < 10 ? 2 : 1)} mi`
-  }
-  const km = meters / 1000
-  return `${km.toFixed(km < 10 ? 2 : 1)} km`
-}
 
 interface StatCell {
   label: string

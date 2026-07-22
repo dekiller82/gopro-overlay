@@ -68,5 +68,11 @@ export function applyThemeToWidget(widget: WidgetInstance, theme: LayoutTheme): 
       return { ...widget, style: { ...widget.style, textColor: primary, backgroundColor, backgroundOpacity } }
     case 'elevation':
       return { ...widget, style: { ...widget.style, color: primary, labelColor: label, graphLineColor: accent, backgroundColor, backgroundOpacity } }
+    case 'distance':
+      return { ...widget, style: { ...widget.style, color: primary, labelColor: label, backgroundColor, backgroundOpacity } }
+    case 'compass':
+      return { ...widget, style: { ...widget.style, color: primary, labelColor: label, backgroundColor, backgroundOpacity } }
+    case 'accelTimer':
+      return { ...widget, style: { ...widget.style, color: primary, labelColor: label, bestColor: accent, backgroundColor, backgroundOpacity } }
   }
 }
