@@ -2,6 +2,23 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.15] - 2026-07-23
+
+### Added
+- **Keyboard shortcuts & getting-started panel** — a "?" button in the toolbar (or just pressing
+  `?`) opens a reference panel listing every keyboard shortcut (undo/redo, select all, delete,
+  arrow-key nudge/frame-step, play/pause, shift-click multi-select) alongside a short written
+  walkthrough of the core workflow (import → add widgets → set start/finish → style → export).
+  Also reachable from the welcome screen before importing anything.
+- **Widgets now lock during export, and a real OS notification fires when it finishes** — widget
+  drag/resize and every property-panel edit are disabled (visually dimmed, and genuinely
+  non-interactive via the browser's `inert` mechanism) for the duration of an export, so there's no
+  more ambiguity about whether moving something mid-export changes the output. For the record: it
+  never did — the export pipeline already works from a one-time snapshot of your widgets copied over
+  IPC the instant you click Export, so this is purely about removing that uncertainty, not a
+  correctness fix. A native desktop notification (only when the window isn't already focused) lets
+  a long export run in the background without babysitting the progress bar.
+
 ## [0.1.14] - 2026-07-22
 
 ### Fixed

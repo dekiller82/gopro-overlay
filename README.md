@@ -67,6 +67,13 @@ speedometer widgets running together over real footage.
 - **In-app "What's New" viewer** and an **update notification** — the changelog shows automatically
   once per new version (reopenable anytime from the toolbar), and a dismissible banner appears if a
   newer release is available on GitHub.
+- **Keyboard shortcuts & getting-started panel** — press `?` (or click the toolbar's `?` button, or
+  from the welcome screen before importing anything) for a reference list of every shortcut plus a
+  short written walkthrough of the core workflow.
+- **Export locks the editor and notifies you when done** — widgets and the property panel become
+  read-only for the duration of an export (the export already renders from an independent snapshot
+  taken the instant you click Export, so this is just about removing ambiguity, not a correctness
+  fix), and a native OS notification fires if the window isn't focused when it finishes.
 - **GPU-accelerated export** — automatically detects and smoke-tests a working hardware encoder
   (NVIDIA NVENC, Intel Quick Sync, AMD AMF) before trusting it, falling back to CPU (libx264) if
   none is available or the GPU encoder fails partway through. See [GPU acceleration](#gpu-acceleration)

@@ -25,6 +25,7 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
   const trimStartMs = useProjectStore((s) => s.trimStartMs)
   const trimEndMs = useProjectStore((s) => s.trimEndMs)
   const defaultFontFamily = useProjectStore((s) => s.defaultFontFamily)
+  const isExporting = useProjectStore((s) => s.isExporting)
   // Only one widget can be dragged at a time, so a single shared slot (rather than per-widget state)
   // is enough -- whichever WidgetBox is actively being dragged reports into it. Guide lines span the
   // whole frame, so they're rendered here rather than inside the dragging widget's own box.
@@ -112,8 +113,13 @@ function WidgetLayer({ style, frameWidth, frameHeight, sampler, currentTimeMs }:
 
   return (
     <div
-      className="widget-layer"
+      className={`widget-layer${isExporting ? ' widget-layer--locked' : ''}`}
       style={style}
+      // `inert` fully blocks pointer AND keyboard interaction with every widget underneath -- the
+      // export pipeline already works from a one-time snapshot of `widgets` copied over IPC when
+      // Export was clicked, so this doesn't change what gets exported, it just avoids the "did that
+      // just affect my export?" ambiguity of being able to freely drag widgets around while one runs.
+      inert={isExporting}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) selectWidget(null)
       }}

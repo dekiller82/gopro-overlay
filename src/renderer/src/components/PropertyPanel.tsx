@@ -175,6 +175,7 @@ function PropertyPanel(): React.JSX.Element {
   const startFinish = useProjectStore((s) => s.startFinish)
   const setStartFinish = useProjectStore((s) => s.setStartFinish)
   const crossingAdjustmentsMs = useProjectStore((s) => s.crossingAdjustmentsMs)
+  const isExporting = useProjectStore((s) => s.isExporting)
   const paddingFraction = useAlignmentStore((s) => s.paddingFraction)
   const setPaddingFraction = useAlignmentStore((s) => s.setPaddingFraction)
   const snapEnabled = useAlignmentStore((s) => s.snapEnabled)
@@ -298,6 +299,10 @@ function PropertyPanel(): React.JSX.Element {
           Style
         </button>
       </div>
+
+      {isExporting && <div className="property-panel__export-lock">Locked during export</div>}
+
+      <div className={`property-panel__content${isExporting ? ' property-panel__content--locked' : ''}`} inert={isExporting}>
 
       {activeTab === 'widgets' && (
         <>
@@ -3417,6 +3422,7 @@ function PropertyPanel(): React.JSX.Element {
       })()}
         </>
       )}
+      </div>
     </aside>
   )
 }

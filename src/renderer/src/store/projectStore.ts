@@ -22,6 +22,12 @@ interface ProjectState {
   /** Project-wide default font -- FORMULA1_FONT_ID or a real OS-installed font family name. Any
    *  widget's own fontFamily overrides this when set. */
   defaultFontFamily: string
+  /** True for the duration of a real export -- the export pipeline already works from a one-time
+   *  snapshot of `widgets` copied over IPC at the moment Export was clicked (structured-clone, not a
+   *  live reference), so editing widgets afterward can never actually change that export's output.
+   *  This flag exists purely so the UI can lock widget drag/resize and property-panel editing while
+   *  it runs, to avoid the "did that just affect my export?" ambiguity, not to fix a real bug. */
+  isExporting: boolean
   setImported: (imported: ImportResult | null) => void
   /** Appending more clips to an in-progress edit -- unlike setImported, this does NOT reset the
    *  playhead/startFinish/trim (the user is extending their existing timeline, not starting a new
@@ -42,6 +48,7 @@ interface ProjectState {
   resetCrossingAdjustment: (index: number) => void
   setTrim: (trimStartMs: number, trimEndMs: number) => void
   setDefaultFontFamily: (defaultFontFamily: string) => void
+  setIsExporting: (isExporting: boolean) => void
 }
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -53,6 +60,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   trimStartMs: 0,
   trimEndMs: 0,
   defaultFontFamily: FORMULA1_FONT_ID,
+  isExporting: false,
   setImported: (imported) =>
     set({
       imported,
@@ -91,5 +99,6 @@ export const useProjectStore = create<ProjectState>((set) => ({
       return { crossingAdjustmentsMs: next }
     }),
   setTrim: (trimStartMs, trimEndMs) => set({ trimStartMs, trimEndMs }),
-  setDefaultFontFamily: (defaultFontFamily) => set({ defaultFontFamily })
+  setDefaultFontFamily: (defaultFontFamily) => set({ defaultFontFamily }),
+  setIsExporting: (isExporting) => set({ isExporting })
 }))

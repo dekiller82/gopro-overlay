@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from './components/Editor'
 import WhatsNewModal from './components/WhatsNewModal'
 import ProjectSettingsModal from './components/ProjectSettingsModal'
+import ShortcutsHelpModal from './components/ShortcutsHelpModal'
 import ToolbarMenu from './components/ToolbarMenu'
 import { useProjectStore } from './store/projectStore'
 import { useWidgetStore } from './store/widgetStore'
@@ -13,10 +14,30 @@ import type { ImportProgress, ProjectPayload, RecentProject, UpdateCheckResult }
 
 const LAST_SEEN_VERSION_KEY = 'gpo-last-seen-version'
 const DISMISSED_UPDATE_VERSION_KEY = 'gpo-dismissed-update-version'
+const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
 
 const IMPORT_PHASE_LABELS: Record<ImportProgress['phase'], string> = {
   extracting: 'Reading video file',
   parsing: 'Parsing GPS telemetry'
+}
+
+/** Fires a real OS notification when an export finishes, so a long export can run in the
+ *  background (minimized/unfocused window) without needing to babysit the progress bar. Only
+ *  notifies when the window doesn't already have focus -- if the user's watching the progress bar
+ *  complete in front of them, a notification on top of that would just be redundant noise. Electron
+ *  grants desktop notification permission to the app's own window without a browser-style prompt, so
+ *  this is safe to call directly. */
+function notifyExportComplete(success: boolean, detail?: string): void {
+  if (typeof Notification === 'undefined' || document.hasFocus()) return
+  const title = success ? 'Export complete' : 'Export failed'
+  const body = success ? 'Your Telemetry Studio export finished.' : (detail ?? 'The export did not complete.')
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body })
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') new Notification(title, { body })
+    })
+  }
 }
 
 function ImportProgressBanner({ progress }: { progress: ImportProgress }): React.JSX.Element {
@@ -63,6 +84,7 @@ function App(): React.JSX.Element {
   const setTrim = useProjectStore((s) => s.setTrim)
   const defaultFontFamily = useProjectStore((s) => s.defaultFontFamily)
   const setDefaultFontFamily = useProjectStore((s) => s.setDefaultFontFamily)
+  const setIsExporting = useProjectStore((s) => s.setIsExporting)
   const widgets = useWidgetStore((s) => s.widgets)
   const loadWidgets = useWidgetStore((s) => s.loadWidgets)
   const resetWidgets = useWidgetStore((s) => s.reset)
@@ -91,6 +113,7 @@ function App(): React.JSX.Element {
   const [changelog, setChangelog] = useState('')
   const [showWhatsNew, setShowWhatsNew] = useState(false)
   const [showProjectSettings, setShowProjectSettings] = useState(false)
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false)
   const systemFonts = useFontStore((s) => s.systemFonts)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
 
@@ -146,6 +169,21 @@ function App(): React.JSX.Element {
     return window.api.onExportProgress(({ done, total }) => {
       setExportState({ phase: 'exporting', done, total })
     })
+  }, [])
+
+  // "?" opens the shortcuts/getting-started panel, matching the convention plenty of other apps
+  // (Slack, Gmail, Figma...) already use -- skipped while a text/select input has focus so it
+  // doesn't fire while actually typing a literal "?" into e.g. the layout-name field.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== '?') return
+      const target = e.target as HTMLElement | null
+      if (target && EDITABLE_TAGS.has(target.tagName)) return
+      e.preventDefault()
+      setShowShortcutsHelp((v) => !v)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   // Checked once at launch, not continuously -- an autosave only matters for recovering from a
@@ -328,15 +366,21 @@ function App(): React.JSX.Element {
     if (!imported || widgets.length === 0) return
     setExportEncoderLabel(null)
     setExportState({ phase: 'exporting', done: 0, total: 1 })
+    setIsExporting(true)
     try {
       const path = await window.api.exportVideo(
         { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily },
         exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
       )
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
+      notifyExportComplete(true)
     } catch (err) {
       console.error('[export] failed:', err)
-      setExportState({ phase: 'error', message: err instanceof Error ? err.message : String(err) })
+      const message = err instanceof Error ? err.message : String(err)
+      setExportState({ phase: 'error', message })
+      notifyExportComplete(false, message)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -362,6 +406,7 @@ function App(): React.JSX.Element {
     setShowBestLapExportForm(false)
     setExportEncoderLabel(null)
     setExportState({ phase: 'exporting', done: 0, total: 1 })
+    setIsExporting(true)
     try {
       const path = await window.api.exportVideo(
         {
@@ -376,9 +421,14 @@ function App(): React.JSX.Element {
         exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
       )
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
+      notifyExportComplete(true)
     } catch (err) {
       console.error('[export best lap] failed:', err)
-      setExportState({ phase: 'error', message: err instanceof Error ? err.message : String(err) })
+      const message = err instanceof Error ? err.message : String(err)
+      setExportState({ phase: 'error', message })
+      notifyExportComplete(false, message)
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -394,6 +444,14 @@ function App(): React.JSX.Element {
           </div>
           <div className="toolbar__actions">
             {savedPath && <span className="toolbar__saved-hint">Saved</span>}
+            <button
+              className="import-button import-button--ghost toolbar__help-button"
+              onClick={() => setShowShortcutsHelp(true)}
+              title="Keyboard shortcuts & getting started (?)"
+              aria-label="Keyboard shortcuts and getting started"
+            >
+              ?
+            </button>
             <button
               className="import-button import-button--ghost"
               onClick={undo}
@@ -591,6 +649,7 @@ function App(): React.JSX.Element {
           onChangeDefaultFontFamily={setDefaultFontFamily}
           onClose={() => setShowProjectSettings(false)}
         />
+        <ShortcutsHelpModal isOpen={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
       </div>
     )
   }
@@ -611,6 +670,9 @@ function App(): React.JSX.Element {
         </button>
         <button className="import-button import-button--ghost" onClick={() => setShowWhatsNew(true)}>
           What's New
+        </button>
+        <button className="import-button import-button--ghost" onClick={() => setShowShortcutsHelp(true)}>
+          Shortcuts &amp; Getting Started
         </button>
       </div>
 
@@ -654,6 +716,7 @@ function App(): React.JSX.Element {
         </div>
       )}
       <WhatsNewModal isOpen={showWhatsNew} changelog={changelog} onClose={() => setShowWhatsNew(false)} />
+      <ShortcutsHelpModal isOpen={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
     </div>
   )
 }

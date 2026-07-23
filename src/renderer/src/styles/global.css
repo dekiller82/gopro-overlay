@@ -640,6 +640,12 @@ body {
   z-index: 0;
 }
 
+.widget-layer--locked {
+  /* Purely visual -- `inert` (set alongside this class) is what actually blocks interaction. Dims
+     the widgets slightly so it's obvious at a glance why dragging them no longer does anything. */
+  opacity: 0.7;
+}
+
 .alignment-guide {
   position: absolute;
   background: var(--accent);
@@ -736,6 +742,30 @@ body {
   background: var(--bg);
   border-color: var(--border);
   color: var(--text);
+}
+
+.property-panel__export-lock {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  color: #ffb020;
+  background: rgba(255, 176, 32, 0.1);
+  border: 1px solid rgba(255, 176, 32, 0.3);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+/* Replicates .property-panel's own flex/gap layout -- sections moved one level deeper (into this
+   wrapper, so `inert` can lock them all as a single unit during export) still need the same
+   vertical spacing between them. */
+.property-panel__content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.property-panel__content--locked {
+  opacity: 0.6;
 }
 
 .property-panel__header {
@@ -1096,4 +1126,51 @@ body {
 .whats-new__empty {
   color: var(--text-dim);
   font-size: 13px;
+}
+
+.whats-new__body ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.toolbar__help-button {
+  font-weight: 700;
+  width: 30px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.shortcuts-list__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shortcuts-list__keys {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 140px;
+}
+
+.shortcuts-list__keys kbd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.shortcuts-list__desc {
+  font-size: 13px;
+  color: var(--text);
 }
