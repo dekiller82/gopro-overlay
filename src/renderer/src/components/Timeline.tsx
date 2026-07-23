@@ -211,9 +211,17 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
       if (dragging === 'playhead') {
         seekToRatio(ratio)
       } else if (dragging === 'trimStart') {
-        setTrim(Math.min(ms, trimEndMs - MIN_TRIM_GAP_MS), trimEndMs)
+        const clampedMs = Math.min(ms, trimEndMs - MIN_TRIM_GAP_MS)
+        setTrim(clampedMs, trimEndMs)
+        // Seeks the video to the handle's own new position (not wherever the playhead already was)
+        // so you can see exactly where the trim will start/end while still dragging, same reasoning
+        // as the playhead branch just above -- previously only the trim mask/handle moved, the video
+        // itself stayed wherever it was.
+        playerApiRef.current?.seekToGlobalMs(clampedMs)
       } else {
-        setTrim(trimStartMs, Math.max(ms, trimStartMs + MIN_TRIM_GAP_MS))
+        const clampedMs = Math.max(ms, trimStartMs + MIN_TRIM_GAP_MS)
+        setTrim(trimStartMs, clampedMs)
+        playerApiRef.current?.seekToGlobalMs(clampedMs)
       }
     }
 
@@ -237,7 +245,7 @@ function Timeline({ videoRef, playerApiRef, sampler }: Props): React.JSX.Element
       window.removeEventListener('mouseup', onMouseUp)
       if (dragRafRef.current !== null) cancelAnimationFrame(dragRafRef.current)
     }
-  }, [dragging, ratioFromClientX, seekToRatio, setTrim, totalDurationMs, trimStartMs, trimEndMs])
+  }, [dragging, ratioFromClientX, seekToRatio, setTrim, totalDurationMs, trimStartMs, trimEndMs, playerApiRef])
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current

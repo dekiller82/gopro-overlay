@@ -2,6 +2,13 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.17] - 2026-07-23
+
+### Fixed
+- **Dragging a trim handle didn't move the video** — only the trim marker itself updated, so you
+  couldn't see where the start/end point would actually land until you released the mouse. Dragging
+  either trim handle now seeks the video live, the same way scrubbing the playhead already does.
+
 ## [0.1.16] - 2026-07-23
 
 ### Added
