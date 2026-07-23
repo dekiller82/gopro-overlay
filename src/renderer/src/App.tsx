@@ -97,8 +97,18 @@ function App(): React.JSX.Element {
   const [savedPath, setSavedPath] = useState<string | null>(null)
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null)
   const [exportState, setExportState] = useState<
-    { phase: 'idle' } | { phase: 'exporting'; done: number; total: number } | { phase: 'done'; path: string } | { phase: 'error'; message: string }
+    | { phase: 'idle' }
+    | { phase: 'exporting'; done: number; total: number }
+    | { phase: 'done'; path: string }
+    | { phase: 'cancelled' }
+    | { phase: 'error'; message: string }
   >({ phase: 'idle' })
+  // Set by the onExportCancelled listener the instant the main process confirms ffmpeg was killed --
+  // read right after handleExport/handleExportBestLap's own await resolves, so their normal
+  // `path ? done : idle` outcome doesn't clobber the 'cancelled' state a beat later, and so a
+  // cancelled export doesn't fire the "export complete" OS notification.
+  const wasCancelledRef = useRef(false)
+  const [cancelRequested, setCancelRequested] = useState(false)
   const [exportEncoderLabel, setExportEncoderLabel] = useState<string | null>(null)
   // SOURCE_QUALITY_PRESET_ID is a UI-only sentinel, not a real preset id -- selecting it means
   // "no delivery preset," so window.api.exportVideo gets undefined and behaves exactly as before
@@ -168,6 +178,13 @@ function App(): React.JSX.Element {
   useEffect(() => {
     return window.api.onExportProgress(({ done, total }) => {
       setExportState({ phase: 'exporting', done, total })
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onExportCancelled(() => {
+      wasCancelledRef.current = true
+      setExportState({ phase: 'cancelled' })
     })
   }, [])
 
@@ -367,14 +384,18 @@ function App(): React.JSX.Element {
     setExportEncoderLabel(null)
     setExportState({ phase: 'exporting', done: 0, total: 1 })
     setIsExporting(true)
+    wasCancelledRef.current = false
+    setCancelRequested(false)
     try {
       const path = await window.api.exportVideo(
         { imported, widgets, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily },
         exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
       )
+      if (wasCancelledRef.current) return
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
       notifyExportComplete(true)
     } catch (err) {
+      if (wasCancelledRef.current) return
       console.error('[export] failed:', err)
       const message = err instanceof Error ? err.message : String(err)
       setExportState({ phase: 'error', message })
@@ -407,6 +428,8 @@ function App(): React.JSX.Element {
     setExportEncoderLabel(null)
     setExportState({ phase: 'exporting', done: 0, total: 1 })
     setIsExporting(true)
+    wasCancelledRef.current = false
+    setCancelRequested(false)
     try {
       const path = await window.api.exportVideo(
         {
@@ -420,9 +443,11 @@ function App(): React.JSX.Element {
         },
         exportPresetId === SOURCE_QUALITY_PRESET_ID ? undefined : exportPresetId
       )
+      if (wasCancelledRef.current) return
       setExportState(path ? { phase: 'done', path } : { phase: 'idle' })
       notifyExportComplete(true)
     } catch (err) {
+      if (wasCancelledRef.current) return
       console.error('[export best lap] failed:', err)
       const message = err instanceof Error ? err.message : String(err)
       setExportState({ phase: 'error', message })
@@ -430,6 +455,13 @@ function App(): React.JSX.Element {
     } finally {
       setIsExporting(false)
     }
+  }
+
+  function handleCancelExport(): void {
+    setCancelRequested(true)
+    window.api.cancelExport().catch((err) => {
+      console.error('[export] cancel request failed:', err)
+    })
   }
 
   const isExporting = exportState.phase === 'exporting'
@@ -445,7 +477,7 @@ function App(): React.JSX.Element {
           <div className="toolbar__actions">
             {savedPath && <span className="toolbar__saved-hint">Saved</span>}
             <button
-              className="import-button import-button--ghost toolbar__help-button"
+              className="import-button import-button--ghost"
               onClick={() => setShowShortcutsHelp(true)}
               title="Keyboard shortcuts & getting started (?)"
               aria-label="Keyboard shortcuts and getting started"
@@ -622,6 +654,17 @@ function App(): React.JSX.Element {
               Exporting frame {exportState.done} / {exportState.total}
               {exportEncoderLabel ? ` · ${exportEncoderLabel}` : ''}
             </span>
+            <button className="export-banner__cancel" onClick={handleCancelExport} disabled={cancelRequested}>
+              {cancelRequested ? 'Cancelling…' : 'Cancel'}
+            </button>
+          </div>
+        )}
+        {exportState.phase === 'cancelled' && (
+          <div className="export-banner export-banner--cancelled">
+            Export cancelled
+            <button className="export-banner__dismiss" onClick={() => setExportState({ phase: 'idle' })}>
+              ×
+            </button>
           </div>
         )}
         {exportState.phase === 'done' && (

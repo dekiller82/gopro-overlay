@@ -18,6 +18,7 @@ interface Api {
   /** deliveryPresetId: an id from shared/export/deliveryPresets.ts, or omitted/undefined for the
    *  default "source quality" export (unchanged, quality-based CRF encode at the source resolution). */
   exportVideo: (payload: ProjectPayload, deliveryPresetId?: string) => Promise<string | null>
+  cancelExport: () => Promise<void>
   listLayoutPresets: () => Promise<WidgetLayoutPreset[]>
   saveLayoutPreset: (name: string, widgets: WidgetInstance[]) => Promise<WidgetLayoutPreset[]>
   deleteLayoutPreset: (id: string) => Promise<WidgetLayoutPreset[]>
@@ -33,6 +34,7 @@ interface Api {
   onImportProgress: (callback: (progress: ImportProgress) => void) => () => void
   onPreviewProxyProgress: (callback: (progress: { fraction: number }) => void) => () => void
   onExportEncoder: (callback: (info: { label: string }) => void) => () => void
+  onExportCancelled: (callback: () => void) => () => void
 }
 
 declare global {

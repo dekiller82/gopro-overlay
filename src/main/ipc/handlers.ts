@@ -1,4 +1,5 @@
 import { ipcMain, dialog, BrowserWindow, app, type OpenDialogOptions } from 'electron'
+import { unlink } from 'fs/promises'
 import { ensurePreviewProxy } from '../video/previewProxy'
 import { probeAndParseClip, buildImportResult, sliceClipTelemetry, type ProbedClip } from '../video/clipImport'
 import { loadProjectFromFile, saveProjectToFile } from '../project/persistence'
@@ -8,7 +9,7 @@ import { listRecentProjects, addRecentProject, removeRecentProject, defaultRecen
 import { defaultChangelogPath, readChangelog } from '../app/changelog'
 import { checkForUpdate } from '../app/updateCheck'
 import { listSystemFonts } from '../app/systemFonts'
-import { runExport } from '../export/runExport'
+import { runExport, ExportCancelledError } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
 import { findDeliveryPreset, resolvePresetDimensions } from '../../shared/export/deliveryPresets'
 import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLayoutPreset, RecentProject, UpdateCheckResult } from '../../shared/types'
@@ -16,6 +17,11 @@ import type { ImportResult, ProjectPayload, VideoMeta, WidgetInstance, WidgetLay
 const PROJECT_FILTERS = [{ name: 'Telemetry Studio Project', extensions: ['gpo'] }]
 const VIDEO_FILTERS = [{ name: 'GoPro video', extensions: ['mp4', 'mov', 'MP4', 'MOV'] }]
 const EXPORT_CRF = 18
+
+// Only one export can run at a time (the renderer already disables the Export button while
+// isExporting), so a single module-level controller is enough to correlate a `export:cancel` call
+// with whichever export is currently in flight -- no id/correlation scheme needed.
+let currentExportController: AbortController | null = null
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('video:pick', async (): Promise<string[]> => {
@@ -143,33 +149,59 @@ export function registerIpcHandlers(): void {
       ? resolvePresetDimensions(preset, referenceVideo.width, referenceVideo.height)
       : { width: referenceVideo.width, height: referenceVideo.height }
 
-    await runExport({
-      clips,
-      outputPath: result.filePath,
-      widgets: payload.widgets,
-      sampler,
-      startFinish: payload.startFinish,
-      crossingAdjustmentsMs: payload.crossingAdjustmentsMs,
-      trimStartMs: payload.trimStartMs,
-      trimEndMs: payload.trimEndMs,
-      defaultFontFamily: payload.defaultFontFamily,
-      settings: {
-        width,
-        height,
-        fps: referenceVideo.fps || 30,
-        crf: EXPORT_CRF,
-        videoBitrateKbps: preset?.videoBitrateKbps,
-        audioBitrateKbps: preset?.audioBitrateKbps
-      },
-      onProgress: (done, total) => {
-        event.sender.send('export:progress', { done, total })
-      },
-      onEncoderSelected: (label) => {
-        event.sender.send('export:encoder', { label })
+    const controller = new AbortController()
+    currentExportController = controller
+
+    try {
+      await runExport({
+        clips,
+        outputPath: result.filePath,
+        widgets: payload.widgets,
+        sampler,
+        startFinish: payload.startFinish,
+        crossingAdjustmentsMs: payload.crossingAdjustmentsMs,
+        trimStartMs: payload.trimStartMs,
+        trimEndMs: payload.trimEndMs,
+        defaultFontFamily: payload.defaultFontFamily,
+        settings: {
+          width,
+          height,
+          fps: referenceVideo.fps || 30,
+          crf: EXPORT_CRF,
+          videoBitrateKbps: preset?.videoBitrateKbps,
+          audioBitrateKbps: preset?.audioBitrateKbps
+        },
+        onProgress: (done, total) => {
+          event.sender.send('export:progress', { done, total })
+        },
+        onEncoderSelected: (label) => {
+          event.sender.send('export:encoder', { label })
+        },
+        signal: controller.signal
+      })
+    } catch (err) {
+      if (err instanceof ExportCancelledError) {
+        // ffmpeg was killed mid-write, so whatever it wrote to outputPath is a truncated/corrupt
+        // file, not a usable partial export -- best-effort cleanup, same as ffmpeg's own -y
+        // overwrite semantics never leaving a broken file behind on a genuine failure.
+        try {
+          await unlink(result.filePath)
+        } catch {
+          // nothing to clean up, or already gone -- either way, not worth failing on
+        }
+        event.sender.send('export:cancelled')
+        return null
       }
-    })
+      throw err
+    } finally {
+      currentExportController = null
+    }
 
     return result.filePath
+  })
+
+  ipcMain.handle('export:cancel', async (): Promise<void> => {
+    currentExportController?.abort()
   })
 
   ipcMain.handle('layouts:list', async (): Promise<WidgetLayoutPreset[]> => listLayoutPresets(defaultLayoutPresetsFilePath()))

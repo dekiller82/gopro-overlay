@@ -2,6 +2,17 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.16] - 2026-07-23
+
+### Added
+- **Cancel an in-progress export** — a Cancel button on the export progress bar stops ffmpeg
+  outright (not a graceful finish-then-discard) and cleans up the truncated partial file, instead
+  of only being able to wait it out.
+
+### Fixed
+- **The toolbar's new "?" (shortcuts/help) button didn't match the other toolbar buttons** — it had
+  its own circular styling instead of the same rectangular ghost-button look as Undo/Redo/File.
+
 ## [0.1.15] - 2026-07-23
 
 ### Added

@@ -20,6 +20,7 @@ const api = {
   listRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke('recent:list'),
   exportVideo: (payload: ProjectPayload, deliveryPresetId?: string): Promise<string | null> =>
     ipcRenderer.invoke('export:start', payload, deliveryPresetId),
+  cancelExport: (): Promise<void> => ipcRenderer.invoke('export:cancel'),
   listLayoutPresets: (): Promise<WidgetLayoutPreset[]> => ipcRenderer.invoke('layouts:list'),
   saveLayoutPreset: (name: string, widgets: WidgetInstance[]): Promise<WidgetLayoutPreset[]> =>
     ipcRenderer.invoke('layouts:save', name, widgets),
@@ -51,6 +52,11 @@ const api = {
     const listener = (_event: unknown, info: { label: string }): void => callback(info)
     ipcRenderer.on('export:encoder', listener)
     return () => ipcRenderer.removeListener('export:encoder', listener)
+  },
+  onExportCancelled: (callback: () => void): (() => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on('export:cancelled', listener)
+    return () => ipcRenderer.removeListener('export:cancelled', listener)
   }
 }
 

@@ -241,6 +241,26 @@ body {
   color: #34c759;
 }
 
+.export-banner--cancelled {
+  color: #ffb020;
+}
+
+.export-banner__cancel {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.export-banner__cancel:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .best-lap-export-form {
   display: flex;
   align-items: center;
@@ -1131,13 +1151,6 @@ body {
 .whats-new__body ol {
   margin: 0 0 8px;
   padding-left: 18px;
-}
-
-.toolbar__help-button {
-  font-weight: 700;
-  width: 30px;
-  padding: 0;
-  border-radius: 50%;
 }
 
 .shortcuts-list {

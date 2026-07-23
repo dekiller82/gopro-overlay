@@ -23,6 +23,16 @@ export interface ExportSettings {
   audioBitrateKbps?: number
 }
 
+/** Thrown when an export is stopped via a caller-provided AbortSignal (the user clicked Cancel) --
+ *  distinguished from a genuine ffmpeg failure so callers don't show an "export failed" error, retry
+ *  with a fallback encoder, or otherwise treat a deliberate stop as a crash. */
+export class ExportCancelledError extends Error {
+  constructor() {
+    super('Export cancelled')
+    this.name = 'ExportCancelledError'
+  }
+}
+
 export interface RunExportOptions {
   clips: ClipInfo[]
   outputPath: string
@@ -41,6 +51,9 @@ export interface RunExportOptions {
   settings: ExportSettings
   onProgress?: (framesWritten: number, totalFrames: number) => void
   onEncoderSelected?: (label: string) => void
+  /** Checked once per frame; aborting kills the in-flight ffmpeg process and rejects with
+   *  ExportCancelledError instead of letting the frame loop run to completion. */
+  signal?: AbortSignal
 }
 
 /** This clip's own local seconds for a global-timeline ms position, clamped to [0, its own duration]
@@ -229,7 +242,8 @@ function runWithEncoder(
   trimEndMs: number,
   totalFrames: number,
   renderFrame: (sampleCts: number, elapsedMs: number) => Buffer,
-  onProgress?: (framesWritten: number, totalFrames: number) => void
+  onProgress?: (framesWritten: number, totalFrames: number) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const args = buildFfmpegArgs(clips, settings, trimStartMs, trimEndMs, totalFrames, encoder, outputPath)
 
@@ -255,8 +269,13 @@ function runWithEncoder(
         })
       })
 
+      let cancelled = false
       for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
         if (writeError) break
+        if (signal?.aborted) {
+          cancelled = true
+          break
+        }
 
         const elapsedMs = (frameIndex / settings.fps) * 1000
         const sampleCts = trimStartMs + elapsedMs
@@ -275,25 +294,46 @@ function runWithEncoder(
         onProgress?.(frameIndex + 1, totalFrames)
       }
 
-      try {
-        ff.stdin.end()
-      } catch {
-        // stream may already be closed if ffmpeg exited early; the real error surfaces via exitPromise
+      if (cancelled) {
+        // Kill outright rather than a graceful stdin.end() -- there's no output worth finishing,
+        // and closing stdin normally would just make ffmpeg run to completion on the frames already
+        // buffered/written so far instead of stopping promptly.
+        ff.kill()
+      } else {
+        try {
+          ff.stdin.end()
+        } catch {
+          // stream may already be closed if ffmpeg exited early; the real error surfaces via exitPromise
+        }
       }
 
       try {
         await exitPromise
-        resolveOuter()
+        if (cancelled) rejectOuter(new ExportCancelledError())
+        else resolveOuter()
       } catch (err) {
-        rejectOuter(err)
+        rejectOuter(cancelled ? new ExportCancelledError() : err)
       }
     })()
   })
 }
 
 export async function runExport(options: RunExportOptions): Promise<void> {
-  const { clips, outputPath, widgets, sampler, startFinish, crossingAdjustmentsMs, trimStartMs, trimEndMs, defaultFontFamily, settings, onProgress, onEncoderSelected } =
-    options
+  const {
+    clips,
+    outputPath,
+    widgets,
+    sampler,
+    startFinish,
+    crossingAdjustmentsMs,
+    trimStartMs,
+    trimEndMs,
+    defaultFontFamily,
+    settings,
+    onProgress,
+    onEncoderSelected,
+    signal
+  } = options
 
   const ffmpegPath = resolveUnpackedBinaryPath(ffmpegPathRaw)
   if (!ffmpegPath) throw new Error('Bundled ffmpeg binary not found for this platform')
@@ -319,14 +359,17 @@ export async function runExport(options: RunExportOptions): Promise<void> {
   onEncoderSelected?.(encoder.label)
 
   try {
-    await runWithEncoder(resolvedFfmpegPath, encoder, clips, outputPath, settings, trimStartMs, trimEndMs, totalFrames, renderFrame, onProgress)
+    await runWithEncoder(resolvedFfmpegPath, encoder, clips, outputPath, settings, trimStartMs, trimEndMs, totalFrames, renderFrame, onProgress, signal)
   } catch (err) {
+    // A deliberate cancellation is never retried with a fallback encoder -- there's nothing to
+    // recover from, the user asked to stop.
+    if (err instanceof ExportCancelledError) throw err
     // The quick smoke-test in selectVideoEncoder can pass while the real export (much larger
     // resolution/duration) still hits a GPU-specific limit -- fall back to CPU once rather than
     // failing the whole export outright.
     if (encoder.codec === CPU_ENCODER.codec) throw err
     console.warn(`[export] ${encoder.label} failed mid-export, retrying with CPU encoder:`, err)
     onEncoderSelected?.(`${CPU_ENCODER.label} (fallback after ${encoder.label} failed)`)
-    await runWithEncoder(resolvedFfmpegPath, CPU_ENCODER, clips, outputPath, settings, trimStartMs, trimEndMs, totalFrames, renderFrame, onProgress)
+    await runWithEncoder(resolvedFfmpegPath, CPU_ENCODER, clips, outputPath, settings, trimStartMs, trimEndMs, totalFrames, renderFrame, onProgress, signal)
   }
 }
