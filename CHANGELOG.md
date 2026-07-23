@@ -2,6 +2,19 @@
 
 All notable changes to Telemetry Studio are documented here.
 
+## [0.1.18] - 2026-07-23
+
+### Added
+- **In-app updates on Windows and Linux** — the existing "a new version is available" banner now has
+  an Update button: click it to download in the background with a visible progress bar, then Restart
+  & Install when it's ready, instead of only linking out to the Releases page. macOS keeps the
+  link-out banner unchanged — Apple's Gatekeeper requires a paid Developer ID to auto-update at all,
+  which this project doesn't have. Windows updates work without a certificate too (no SmartScreen
+  changes from what the installer already shows today).
+  **Note:** this only works starting from the *next* release after this one — the update-metadata
+  file it needs isn't present on any release published before this feature existed, so upgrading
+  away from this exact version still has to be done manually.
+
 ## [0.1.17] - 2026-07-23
 
 ### Fixed

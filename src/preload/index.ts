@@ -33,6 +33,9 @@ const api = {
   getChangelog: (): Promise<string> => ipcRenderer.invoke('app:getChangelog'),
   checkForUpdate: (): Promise<UpdateCheckResult | null> => ipcRenderer.invoke('app:checkForUpdate'),
   listSystemFonts: (): Promise<string[]> => ipcRenderer.invoke('fonts:listSystem'),
+  isInAppUpdateSupported: (): Promise<boolean> => ipcRenderer.invoke('updater:supported'),
+  startUpdate: (): Promise<void> => ipcRenderer.invoke('updater:start'),
+  quitAndInstallUpdate: (): Promise<void> => ipcRenderer.invoke('updater:quitAndInstall'),
   onExportProgress: (callback: (progress: ExportProgress) => void): (() => void) => {
     const listener = (_event: unknown, progress: ExportProgress): void => callback(progress)
     ipcRenderer.on('export:progress', listener)
@@ -57,6 +60,21 @@ const api = {
     const listener = (): void => callback()
     ipcRenderer.on('export:cancelled', listener)
     return () => ipcRenderer.removeListener('export:cancelled', listener)
+  },
+  onUpdateProgress: (callback: (percent: number) => void): (() => void) => {
+    const listener = (_event: unknown, percent: number): void => callback(percent)
+    ipcRenderer.on('updater:progress', listener)
+    return () => ipcRenderer.removeListener('updater:progress', listener)
+  },
+  onUpdateDownloaded: (callback: () => void): (() => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on('updater:downloaded', listener)
+    return () => ipcRenderer.removeListener('updater:downloaded', listener)
+  },
+  onUpdateError: (callback: (message: string) => void): (() => void) => {
+    const listener = (_event: unknown, message: string): void => callback(message)
+    ipcRenderer.on('updater:error', listener)
+    return () => ipcRenderer.removeListener('updater:error', listener)
   }
 }
 

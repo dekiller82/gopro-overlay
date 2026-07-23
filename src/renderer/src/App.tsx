@@ -57,13 +57,52 @@ function ImportProgressBanner({ progress }: { progress: ImportProgress }): React
   )
 }
 
-function UpdateBanner({ info, onDismiss }: { info: UpdateCheckResult; onDismiss: () => void }): React.JSX.Element {
+type UpdatePhase = { phase: 'idle' } | { phase: 'downloading'; percent: number } | { phase: 'downloaded' } | { phase: 'error'; message: string }
+
+function UpdateBanner({
+  info,
+  canUpdateInApp,
+  updatePhase,
+  onDismiss,
+  onStartUpdate,
+  onRestartAndInstall
+}: {
+  info: UpdateCheckResult
+  canUpdateInApp: boolean
+  updatePhase: UpdatePhase
+  onDismiss: () => void
+  onStartUpdate: () => void
+  onRestartAndInstall: () => void
+}): React.JSX.Element {
   return (
     <div className="export-banner export-banner--update">
-      A new version ({info.latestVersion}) is available — you're on {info.currentVersion}.
+      <span>
+        A new version ({info.latestVersion}) is available — you're on {info.currentVersion}.
+        {updatePhase.phase === 'error' && <span className="export-banner--error"> {updatePhase.message}</span>}
+      </span>
+      {updatePhase.phase === 'downloading' && (
+        <div className="export-banner__bar">
+          <div className="export-banner__fill" style={{ width: `${updatePhase.percent}%` }} />
+        </div>
+      )}
       <a className="import-button import-button--ghost" href={info.releaseUrl} target="_blank" rel="noreferrer">
         View release
       </a>
+      {canUpdateInApp && (updatePhase.phase === 'idle' || updatePhase.phase === 'error') && (
+        <button className="import-button" onClick={onStartUpdate}>
+          Update
+        </button>
+      )}
+      {canUpdateInApp && updatePhase.phase === 'downloading' && (
+        <button className="import-button" disabled>
+          Downloading… {updatePhase.percent}%
+        </button>
+      )}
+      {canUpdateInApp && updatePhase.phase === 'downloaded' && (
+        <button className="import-button" onClick={onRestartAndInstall}>
+          Restart &amp; Install
+        </button>
+      )}
       <button className="export-banner__dismiss" onClick={onDismiss} title="Dismiss until the next release">
         ×
       </button>
@@ -126,6 +165,8 @@ function App(): React.JSX.Element {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false)
   const systemFonts = useFontStore((s) => s.systemFonts)
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
+  const [canUpdateInApp, setCanUpdateInApp] = useState(false)
+  const [updatePhase, setUpdatePhase] = useState<UpdatePhase>({ phase: 'idle' })
 
   const refreshRecentProjects = (): void => {
     window.api.listRecentProjects().then(setRecentProjects)
@@ -163,6 +204,39 @@ function App(): React.JSX.Element {
     })
   }, [])
 
+  // False on macOS -- Squirrel.Mac (Electron's own auto-updater mechanism there) requires the app be
+  // code-signed to replace itself, and this project has no Apple Developer ID. See main/app/updater.ts.
+  useEffect(() => {
+    window.api.isInAppUpdateSupported().then(setCanUpdateInApp)
+  }, [])
+
+  function handleStartUpdate(): void {
+    setUpdatePhase({ phase: 'downloading', percent: 0 })
+    window.api.startUpdate()
+  }
+
+  function handleRestartAndInstall(): void {
+    window.api.quitAndInstallUpdate()
+  }
+
+  useEffect(() => {
+    return window.api.onUpdateProgress((percent) => {
+      setUpdatePhase({ phase: 'downloading', percent })
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onUpdateDownloaded(() => {
+      setUpdatePhase({ phase: 'downloaded' })
+    })
+  }, [])
+
+  useEffect(() => {
+    return window.api.onUpdateError((message) => {
+      setUpdatePhase({ phase: 'error', message })
+    })
+  }, [])
+
   // Loaded once at startup so the global font picker (Project Settings modal) and every widget's own
   // per-widget font dropdown share the same list without each triggering its own IPC round trip.
   const loadSystemFonts = useFontStore((s) => s.loadSystemFonts)
@@ -173,6 +247,7 @@ function App(): React.JSX.Element {
   function dismissUpdateNotice(): void {
     if (updateInfo) localStorage.setItem(DISMISSED_UPDATE_VERSION_KEY, updateInfo.latestVersion)
     setUpdateInfo(null)
+    setUpdatePhase({ phase: 'idle' })
   }
 
   useEffect(() => {
@@ -639,7 +714,16 @@ function App(): React.JSX.Element {
             </button>
           </div>
         )}
-        {updateInfo && <UpdateBanner info={updateInfo} onDismiss={dismissUpdateNotice} />}
+        {updateInfo && (
+        <UpdateBanner
+          info={updateInfo}
+          canUpdateInApp={canUpdateInApp}
+          updatePhase={updatePhase}
+          onDismiss={dismissUpdateNotice}
+          onStartUpdate={handleStartUpdate}
+          onRestartAndInstall={handleRestartAndInstall}
+        />
+      )}
         {status === 'error' && <p className="app-shell__error toolbar__error">{error}</p>}
         {status === 'loading' && importProgress && <ImportProgressBanner progress={importProgress} />}
         {exportState.phase === 'exporting' && (
@@ -719,7 +803,16 @@ function App(): React.JSX.Element {
         </button>
       </div>
 
-      {updateInfo && <UpdateBanner info={updateInfo} onDismiss={dismissUpdateNotice} />}
+      {updateInfo && (
+        <UpdateBanner
+          info={updateInfo}
+          canUpdateInApp={canUpdateInApp}
+          updatePhase={updatePhase}
+          onDismiss={dismissUpdateNotice}
+          onStartUpdate={handleStartUpdate}
+          onRestartAndInstall={handleRestartAndInstall}
+        />
+      )}
 
       {autosaveAvailable && status !== 'loading' && (
         <div className="export-banner export-banner--done">

@@ -6,6 +6,7 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { clearPreviewCache } from './video/previewProxy'
 import { registerVideoProtocolPrivilege, registerVideoProtocolHandler } from './video/videoProtocol'
 import { chromiumFeaturesFor } from './app/chromiumFeatures'
+import { registerUpdaterListeners } from './app/updater'
 
 // Must be set before app.whenReady() -- see chromiumFeatures.ts for why these exist.
 app.commandLine.appendSwitch('enable-features', chromiumFeaturesFor(process.platform).join(','))
@@ -73,6 +74,7 @@ app.whenReady().then(() => {
 
   registerVideoProtocolHandler()
   registerIpcHandlers()
+  registerUpdaterListeners()
   clearPreviewCache()
   createWindow()
 

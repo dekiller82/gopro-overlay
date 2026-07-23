@@ -8,6 +8,7 @@ import { autosaveProjectPath, hasAutosave, clearAutosave } from '../project/auto
 import { listRecentProjects, addRecentProject, removeRecentProject, defaultRecentProjectsFilePath } from '../project/recentProjects'
 import { defaultChangelogPath, readChangelog } from '../app/changelog'
 import { checkForUpdate } from '../app/updateCheck'
+import { SUPPORTS_IN_APP_UPDATE, startUpdate, quitAndInstallUpdate } from '../app/updater'
 import { listSystemFonts } from '../app/systemFonts'
 import { runExport, ExportCancelledError } from '../export/runExport'
 import { createTelemetrySampler } from '../../shared/telemetry/sampleAt'
@@ -129,6 +130,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('app:getChangelog', async (): Promise<string> => readChangelog(defaultChangelogPath()))
   ipcMain.handle('app:checkForUpdate', async (): Promise<UpdateCheckResult | null> => checkForUpdate(app.getVersion()))
   ipcMain.handle('fonts:listSystem', async (): Promise<string[]> => listSystemFonts())
+
+  ipcMain.handle('updater:supported', (): boolean => SUPPORTS_IN_APP_UPDATE)
+  ipcMain.handle('updater:start', (): void => startUpdate())
+  ipcMain.handle('updater:quitAndInstall', (): void => quitAndInstallUpdate())
 
   ipcMain.handle('export:start', async (event, payload: ProjectPayload, deliveryPresetId?: string): Promise<string | null> => {
     const win = BrowserWindow.getFocusedWindow()

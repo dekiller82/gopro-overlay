@@ -64,9 +64,12 @@ speedometer widgets running together over real footage.
   opened/saved projects.
 - **Project files** (`.gpo`) save the full editing state (imported clips, widgets, trim, start/finish
   line) so you can come back and keep editing.
-- **In-app "What's New" viewer** and an **update notification** — the changelog shows automatically
-  once per new version (reopenable anytime from the toolbar), and a dismissible banner appears if a
-  newer release is available on GitHub.
+- **In-app "What's New" viewer** and an **in-app updater** — the changelog shows automatically once
+  per new version (reopenable anytime from the toolbar), and a dismissible banner appears if a newer
+  release is available on GitHub. On Windows and Linux, that banner can download and install the
+  update for you (progress bar, then Restart & Install) instead of only linking to the Releases page.
+  macOS keeps the link-out-only banner — Apple's Gatekeeper requires a paid Developer ID to
+  auto-update at all, which this project doesn't have.
 - **Keyboard shortcuts & getting-started panel** — press `?` (or click the toolbar's `?` button, or
   from the welcome screen before importing anything) for a reference list of every shortcut plus a
   short written walkthrough of the core workflow.

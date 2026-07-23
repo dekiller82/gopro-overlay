@@ -52,12 +52,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: telemetry-studio-${{ matrix.os }}
+          # *.yml (latest.yml / latest-linux.yml) and *.blockmap are electron-updater's own
+          # update-metadata files -- electron-builder writes them alongside the installers whenever
+          # a `publish` config exists (it does, see package.json), regardless of --publish never.
+          # Without them, electron-updater has nothing to compare against and never finds an update.
           path: |
             release/*.exe
             release/*.dmg
             release/*.zip
             release/*.AppImage
             release/*.deb
+            release/*.yml
+            release/*.blockmap
           if-no-files-found: ignore
 
   publish:
@@ -74,7 +80,7 @@ jobs:
       - name: Flatten artifacts
         run: |
           mkdir -p out
-          find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' \) -exec cp {} out/ \;
+          find dist -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.yml' -o -name '*.blockmap' \) -exec cp {} out/ \;
           ls -la out
 
       - name: Create release
